@@ -59,17 +59,17 @@
               <span v-else>支持 Word (.doc, .docx) 文件</span>
             </span>
           </div>
-          
+
           <!-- 预览模式：参数输入表单 -->
           <el-card v-if="editMode === 'preview' && isParameterizedProtocol" class="preview-params-card" shadow="never">
             <template #header>
               <div class="params-header">
                 <el-icon><Setting /></el-icon>
                 <span class="params-title">预览参数设置</span>
-                <el-button 
-                  text 
-                  type="primary" 
-                  size="small" 
+                <el-button
+                  text
+                  type="primary"
+                  size="small"
                   @click="resetPreviewForm"
                   class="reset-btn"
                 >
@@ -83,8 +83,8 @@
               <el-row :gutter="20">
                 <el-col :span="10" v-if="showPreviewField('name')">
                   <el-form-item label="应用名称">
-                    <el-input 
-                      v-model="previewForm.params.name" 
+                    <el-input
+                      v-model="previewForm.params.name"
                       placeholder="例如: 长江云短剧"
                       clearable
                     />
@@ -92,8 +92,8 @@
                 </el-col>
                 <el-col :span="12" v-if="showPreviewField('company')">
                   <el-form-item label="公司名称">
-                    <el-input 
-                      v-model="previewForm.params.company" 
+                    <el-input
+                      v-model="previewForm.params.company"
                       placeholder="例如: 湖北长江云新媒体集团有限公司"
                       clearable
                     />
@@ -105,10 +105,10 @@
               <el-row :gutter="20" v-if="showPreviewField('address') || showPreviewField('postcode')">
                 <el-col :span="12" v-if="showPreviewField('address')">
                   <el-form-item label="地址">
-                    <el-input 
-                      v-model="previewForm.params.address" 
-                      type="textarea" 
-                      :rows="2" 
+                    <el-input
+                      v-model="previewForm.params.address"
+                      type="textarea"
+                      :rows="2"
                       placeholder="请输入地址"
                       clearable
                     />
@@ -116,8 +116,8 @@
                 </el-col>
                 <el-col :span="12" v-if="showPreviewField('postcode')">
                   <el-form-item label="邮编">
-                    <el-input 
-                      v-model="previewForm.params.postcode" 
+                    <el-input
+                      v-model="previewForm.params.postcode"
                       placeholder="例如: 430073"
                       clearable
                     />
@@ -129,8 +129,8 @@
               <el-row :gutter="20">
                 <el-col :span="12" v-if="showPreviewField('briefCompany')">
                   <el-form-item label="公司简称">
-                    <el-input 
-                      v-model="previewForm.params.briefCompany" 
+                    <el-input
+                      v-model="previewForm.params.briefCompany"
                       placeholder="例如: 易橙"
                       clearable
                     />
@@ -143,8 +143,8 @@
                 <el-row :gutter="20">
                   <el-col :span="12">
                     <el-form-item label="历史版本链接">
-                      <el-input 
-                        v-model="previewForm.params.historyVersion.href" 
+                      <el-input
+                        v-model="previewForm.params.historyVersion.href"
                         placeholder="例如: https://mp.xyhvip.cn/static/notice/xxx.html"
                         clearable
                       />
@@ -152,8 +152,8 @@
                   </el-col>
                   <el-col :span="10">
                     <el-form-item label="历史版本日期">
-                      <el-input 
-                        v-model="previewForm.params.historyVersion.date" 
+                      <el-input
+                        v-model="previewForm.params.historyVersion.date"
                         placeholder="例如: 2024年07月09日"
                         clearable
                       />
@@ -163,7 +163,7 @@
               </template>
             </el-form>
           </el-card>
-          
+
           <div v-if="editMode === 'code'" class="code-editor-wrapper">
             <div class="line-numbers" ref="lineNumbersRef">
               <div
@@ -254,19 +254,21 @@
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  UploadFilled, 
-  Loading, 
-  WarningFilled, 
-  Setting, 
-  Refresh, 
+import {
+  UploadFilled,
+  Loading,
+  WarningFilled,
+  Setting,
+  Refresh,
 } from '@element-plus/icons-vue'
 import mammoth from 'mammoth'
 import { getProtocol, createProtocol, updateProtocol, getProtocolList } from '../api/protocol'
 import { createPastebinPreview } from '../api/pastebin'
+import {useUserStore} from "@/stores/user.js";
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore();
 
 const isEdit = ref(false)
 const editMode = ref('code')
@@ -282,6 +284,11 @@ const protocolList = ref([]) // 协议列表，用于检查文件名重复
 const form = ref({
   filename: '',
   content: ''
+})
+
+// 检查用户是否有编辑权限
+const hasEditPermission = computed(() => {
+  return userStore.role === 'admin' || userStore.role === 'editor'
 })
 
 // 预览功能相关
@@ -369,15 +376,15 @@ const generatePreviewUrl = async () => {
     try {
       previewLoading.value = true
       previewError.value = ''
-      
+
       // 生成预览HTML内容（注入参数）
       const htmlContent = generatePreviewHtmlContent()
-      
+
       // 调用后端接口创建预览链接
       const previewUrlResult = await createPastebinPreview(htmlContent)
-      
+
       previewUrl.value = previewUrlResult
-      
+
       // 强制刷新 iframe
       nextTick(() => {
         previewUrlKey.value++
@@ -410,14 +417,14 @@ watch(() => form.value.content, () => {
 // 生成预览HTML内容（在HTML开头注入脚本标签设置全局变量）
 const generatePreviewHtmlContent = () => {
   if (!form.value.content) return ''
-  
+
   let htmlContent = form.value.content
-  
+
   // 如果是参数化协议，需要在HTML中注入参数
   if (isParameterizedProtocol.value && previewForm.value.protocol) {
     // 构建参数配置
     const config = {}
-    
+
     // 添加通用字段
     if (previewForm.value.params.name) {
       config.name = previewForm.value.params.name
@@ -425,7 +432,7 @@ const generatePreviewHtmlContent = () => {
     if (previewForm.value.params.company) {
       config.company = previewForm.value.params.company
     }
-    
+
     // 添加短剧特有字段
     if (previewForm.value.protocolType === 'dj') {
       if (previewForm.value.params.address) {
@@ -439,7 +446,7 @@ const generatePreviewHtmlContent = () => {
         config.briefCompany = previewForm.value.params.briefCompany
       }
     }
-    
+
     // 添加影视特有字段
     if (previewForm.value.protocolType === 'ys') {
       // 影视 about 和 privacy 需要 briefCompany，但 agreement 不需要
@@ -447,7 +454,7 @@ const generatePreviewHtmlContent = () => {
         config.briefCompany = previewForm.value.params.briefCompany
       }
     }
-    
+
     // 添加 historyVersion（vod 协议）
     if (previewForm.value.protocol === 'vod' || previewForm.value.protocol === 'vodAgreement') {
       if (previewForm.value.params.historyVersion.href || previewForm.value.params.historyVersion.date) {
@@ -457,7 +464,7 @@ const generatePreviewHtmlContent = () => {
         }
       }
     }
-    
+
     // 生成要注入的脚本内容
     const configJson = JSON.stringify(config, null, 2)
     // 使用字符串拼接避免 Vue linter 误报
@@ -466,7 +473,7 @@ const generatePreviewHtmlContent = () => {
     // eslint-disable-next-line no-useless-concat
     const scriptEnd = '</' + 'script>'
     const injectedScript = scriptStart + '\n// 预览模式注入的参数配置\nwindow.__PREVIEW_CONFIG__ = ' + configJson + ';\n' + scriptEnd
-    
+
     // 在 script src="./utils.js" 之前注入脚本
     // 匹配 script src="./utils.js" 或 script src='./utils.js'
     const scriptTag = 'script'
@@ -512,7 +519,7 @@ const generatePreviewHtmlContent = () => {
         }
       }
     }
-    
+
     // 修改HTML中的参数读取逻辑，优先使用 window.__PREVIEW_CONFIG__
     // 匹配使用 paramConfig 的代码
     const paramConfigPattern = /if\s*\(getParamsFromUrl\(url\)\.paramConfig\)\s*\{[\s\S]*?Object\.assign\(config,\s*JSON\.parse\(params\)\)[\s\S]*?\}/
@@ -522,7 +529,7 @@ const generatePreviewHtmlContent = () => {
         `// 优先使用预览配置\n  if (window.__PREVIEW_CONFIG__) {\n    Object.assign(config, window.__PREVIEW_CONFIG__)\n  } else if (getParamsFromUrl(url).paramConfig) {\n    const params = decodeURIComponent(getParamsFromUrl(url).paramConfig)\n    Object.assign(config, JSON.parse(params))\n  }`
       )
     }
-    
+
     // 处理 name 参数的读取（about、privacy、usercancel 协议都有这个逻辑）
     // 匹配类似：const encode_name = getParamsFromUrl(url).name
     const nameReadPattern = /const\s+encode_name\s*=\s*getParamsFromUrl\(url\)\.name/
@@ -533,7 +540,7 @@ const generatePreviewHtmlContent = () => {
       )
     }
   }
-  
+
   return htmlContent
 }
 
@@ -553,23 +560,23 @@ const handleCodeInput = (e) => {
 // 处理富文本编辑器输入（实时同步内容）
 const handleRichEditorInput = () => {
   if (!richEditorRef.value || isComposing.value) return
-  
+
   syncRichEditorContent()
 }
 
 // 处理富文本编辑器失焦（同步内容）
 const handleRichEditorBlur = () => {
   if (!richEditorRef.value) return
-  
+
   syncRichEditorContent()
 }
 
 // 同步富文本编辑器内容到 form.value.content
 const syncRichEditorContent = () => {
   if (!richEditorRef.value) return
-  
+
   let htmlContent = ''
-  
+
   if (originalContent.value && isFullHTMLDocument(originalContent.value)) {
     // 如果是完整HTML文档，需要包装回完整结构
     const bodyContent = richEditorRef.value.innerHTML
@@ -581,10 +588,10 @@ const syncRichEditorContent = () => {
     // 清理富文本编辑器生成的无用类名和样式
     htmlContent = cleanRichTextHTML(richEditorRef.value.innerHTML)
   }
-  
+
   // 同步到 form.value.content
   form.value.content = htmlContent
-  
+
   // 如果是参数化协议，同时更新 originalHTMLContent（用于预览模式）
   if (isParameterizedProtocol.value) {
     originalHTMLContent.value = htmlContent
@@ -1106,6 +1113,11 @@ const checkFilenameDuplicate = async (filename) => {
 }
 
 const handleSave = async () => {
+  if (!hasEditPermission.value) {
+    ElMessage.error('权限不足，无法保存协议')
+    return
+  }
+
   if (!form.value.filename) {
     ElMessage.warning('请输入文件名')
     return
@@ -1161,7 +1173,7 @@ const handleSave = async () => {
     router.push('/protocols')
   } catch (error) {
     // 处理后端返回的错误信息
-    if (error.response && error.response.data && error.response.data.error) {
+    if (error.response && error.response.data.error) {
       ElMessage.error(error.response.data.error)
     } else if (error.message) {
       ElMessage.error(error.message)

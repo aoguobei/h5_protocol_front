@@ -24,9 +24,9 @@
                   <el-tag :type="gitStatus.is_clean ? 'success' : 'warning'" size="small">
                     {{ gitStatus.is_clean ? '干净' : '有变更' }}
                   </el-tag>
-                  <el-button 
-                    type="primary" 
-                    @click="handlePull" 
+                  <el-button
+                    type="primary"
+                    @click="handlePull"
                     :loading="pulling"
                     :disabled="!gitStatus.is_clean"
                     size="small"
@@ -66,8 +66,8 @@
                   </div>
                   <el-collapse-transition>
                     <div v-show="showChangedFiles" class="changed-files-list">
-                      <div 
-                        v-for="file in gitStatus.changed_files" 
+                      <div
+                        v-for="file in gitStatus.changed_files"
                         :key="file.filename"
                         class="changed-file-item"
                       >
@@ -102,7 +102,7 @@
                 :page-size="5"
                 :total="gitLog.length"
                 layout="prev, pager, next"
-                small
+                size="small"
               />
             </div>
 
@@ -159,8 +159,8 @@
                   </div>
                   <el-collapse-transition>
                     <div v-show="showChangedFilesDeploy" class="changed-files-list">
-                      <div 
-                        v-for="file in gitStatus.changed_files" 
+                      <div
+                        v-for="file in gitStatus.changed_files"
                         :key="file.filename"
                         class="changed-file-item"
                       >
@@ -187,9 +187,10 @@
                   />
                 </el-form-item>
                 <el-form-item>
-                  <el-button 
-                    type="primary" 
-                    @click="handleDeploy" 
+                  <el-button
+                    v-if="hasEditPermission"
+                    type="primary"
+                    @click="handleDeploy"
                     :loading="deploying"
                     :disabled="!commitForm.message || gitStatus.is_clean || (branchStatus.has_remote && branchStatus.behind > 0)"
                   >
@@ -237,6 +238,9 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, ArrowRight } from '@element-plus/icons-vue'
 import { getGitStatus, getGitLog, getBranchStatus, gitPull, gitDeploy } from '../api/git'
+import {useUserStore} from "@/stores/user.js";
+
+const userStore = useUserStore();
 
 const activeTab = ref('pull')
 const loadingStatus = ref(false)
@@ -265,6 +269,11 @@ const commitForm = ref({
 })
 const deploySteps = ref([])
 
+// 检查用户是否有编辑权限
+const hasEditPermission = computed(() => {
+  return userStore.role === 'admin' || userStore.role === 'editor'
+})
+
 // 计算分页后的提交记录
 const paginatedLog = computed(() => {
   const start = (logCurrentPage.value - 1) * logPageSize
@@ -275,24 +284,18 @@ const paginatedLog = computed(() => {
 // 格式化状态（使用 Git 原始状态）
 const formatStatus = (status) => {
   // Git status 状态码说明：
-  // ' M' = Modified (已修改，未暂存)
-  // 'M ' = Modified (已修改，已暂存)
-  // 'A ' = Added (新文件，已暂存)
-  // 'D ' = Deleted (已删除，已暂存)
-  // '??' = Untracked (未跟踪)
-  // 'MM' = Modified (已修改，部分暂存)
-  // 'R ' = Renamed (重命名)
-  // 'C ' = Copied (复制)
   const statusMap = {
-    ' M': 'Modified',
-    'M ': 'Staged',
-    'A ': 'Added',
-    'D ': 'Deleted',
-    '??': 'Untracked',
-    'MM': 'Modified (partial)',
-    'R ': 'Renamed',
-    'C ': 'Copied'
-  }
+    ' M': 'Modified (工作区修改，未暂存)', // 第一个字符空格（暂存区无变化），第二个 M（工作区修改）
+    'M ': 'Staged (暂存区修改，待提交)',  // 第一个 M（暂存区修改），第二个空格（工作区无变化）
+    'A ': 'Added (已暂存新增，待提交)',   // 第一个 A（暂存区新增），第二个空格（工作区无变化）
+    'D ': 'Deleted (已暂存删除，待提交)', // 第一个 D（暂存区删除），第二个空格（工作区无变化）→ 格式正确！
+    ' D': 'Deleted (工作区删除，未暂存)', // 补充：工作区删了但没暂存的场景（避免遗漏）
+    '??': 'Untracked (未跟踪，未加入版本控制)',
+    'MM': 'Modified (暂存区+工作区均修改)', // 两个 M 都有值，无空格
+    'R ': 'Renamed (已暂存重命名，待提交)',
+    'C ': 'Copied (已暂存复制，待提交)',
+    'AD': 'Added & Deleted (暂存区已新增，工作区已删除)' // 无空格（两个位置都有状态：A=暂存区，D=工作区）
+  };
   return statusMap[status] || status
 }
 
@@ -414,6 +417,11 @@ const handlePull = async () => {
 
 // 提交并部署
 const handleDeploy = async () => {
+  if (!hasEditPermission.value) {
+    ElMessage.error('权限不足，无法执行部署操作')
+    return
+  }
+
   if (!commitForm.value.message) {
     ElMessage.warning('请输入提交信息')
     return
@@ -432,8 +440,8 @@ const handleDeploy = async () => {
     return
   }
 
-  // 如果落后远程，不允许部署
-  if (branchStatus.value.has_remote && branchStatus.value.behind > 0) {
+ // 如果落后远程，不允许部署
+ if (branchStatus.value.has_remote && branchStatus.value.behind > 0) {
     ElMessageBox.alert(
       `当前分支落后远程 ${branchStatus.value.behind} 个提交。请先拉取最新代码后再部署，否则编译产物将不是最新的。`,
       '无法部署',
@@ -479,7 +487,7 @@ const handleDeploy = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchPullData()
 })
 </script>
