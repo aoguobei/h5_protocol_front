@@ -15,6 +15,7 @@ const routes = [
     path: '/',
     component: Layout,
     meta: { requiresAuth: true },
+    redirect: '/protocols',
     children: [
       {
         path: '/link-generator',
@@ -58,7 +59,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory('/protocol/'),
   routes
 })
 

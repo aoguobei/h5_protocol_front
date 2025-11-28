@@ -1,11 +1,3 @@
-import axios from 'axios'
+import request from './request'
 
-const api = axios.create({
-  baseURL: '/api',
-  timeout: 30000
-})
-
-// 获取操作日志
-export const getLogList = (params) => {
-  return api.get('/logs', { params: params })
-}
+export const getLogList = (params) => request.get('/logs', { params })

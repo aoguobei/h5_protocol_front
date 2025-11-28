@@ -18,31 +18,12 @@
 
         <el-form-item label="编辑模式">
           <el-radio-group v-model="editMode">
-            <el-radio value="code">代码模式（可编辑格式，推荐）</el-radio>
-            <el-radio value="rich">富文本模式（{{ isEdit ? '仅修改内容' : '仅输入文本，无法设置格式' }}）</el-radio>
+            <el-radio value="visual">可视化编辑（左侧预览，右侧代码）</el-radio>
+            <el-radio value="rich">富文本模式</el-radio>
             <el-radio v-if="isEdit && isParameterizedProtocol" value="preview">预览模式（仅参数化协议）</el-radio>
           </el-radio-group>
         </el-form-item>
-        <div class="mode-tips">
-          <div v-if="!isEdit && editMode === 'rich'" class="tip-item tip-warning">
-            <div class="tip-icon">💡</div>
-            <div class="tip-content">
-              <span>富文本模式新建协议时，只能输入纯文本，无法设置字号、加粗、颜色等样式。浏览器会自动转换为简单的 HTML 标签，格式可能被标准化。如需复杂格式，请使用<strong>代码模式</strong>或导入 HTML 文件。</span>
-            </div>
-          </div>
-          <div v-if="isEdit && editMode === 'rich'" class="tip-item tip-info">
-            <div class="tip-icon">💡</div>
-            <div class="tip-content">
-              <span>富文本模式仅用于修改文本内容，不能修改格式或样式。如需修改格式，请使用<strong>代码模式</strong>。</span>
-            </div>
-          </div>
-          <div v-if="!isEdit && editMode === 'code'" class="tip-item tip-info">
-            <div class="tip-icon">💡</div>
-            <div class="tip-content">
-              <span>代码模式可精确控制格式，建议直接粘贴 HTML 代码或导入 HTML 文件。</span>
-            </div>
-          </div>
-        </div>
+
 
         <el-form-item label="协议内容">
           <div v-if="!isEdit" style="margin-bottom: 12px;">
@@ -54,10 +35,7 @@
             >
               导入文件
             </el-button>
-            <span style="margin-left: 8px; color: #909399; font-size: 12px;">
-              <span v-if="editMode === 'code'">支持 HTML (.html, .htm) 文件</span>
-              <span v-else>支持 Word (.doc, .docx) 文件</span>
-            </span>
+            <span style="margin-left: 8px; color: #909399; font-size: 12px;">支持 Word (.doc, .docx) 文件</span>
           </div>
 
           <!-- 预览模式：参数输入表单 -->
@@ -164,33 +142,76 @@
             </el-form>
           </el-card>
 
-          <div v-if="editMode === 'code'" class="code-editor-wrapper">
-            <div class="line-numbers" ref="lineNumbersRef">
-              <div
-                v-for="line in codeLines"
-                :key="line"
-                class="line-number"
-              >{{ line }}</div>
+          <!-- 可视化编辑模式：左侧代码，右侧预览 -->
+          <div v-if="editMode === 'visual'" class="visual-editor-wrapper">
+            <div class="visual-code">
+              <div class="code-header">HTML 代码</div>
+              <div class="code-editor-wrapper">
+                <div class="line-numbers" ref="lineNumbersRef">
+                  <div
+                    v-for="line in codeLines"
+                    :key="line"
+                    class="line-number"
+                  >{{ line }}</div>
+                </div>
+                <textarea
+                  :value="form.content"
+                  @input="handleCodeInput"
+                  @scroll="handleCodeScroll"
+                  ref="codeTextareaRef"
+                  class="editor-textarea code-editor"
+                  placeholder="请输入协议HTML内容..."
+                ></textarea>
+              </div>
             </div>
-            <textarea
-              :value="form.content"
-              @input="handleCodeInput"
-              @scroll="handleCodeScroll"
-              ref="codeTextareaRef"
-              class="editor-textarea code-editor"
-              placeholder="请输入协议HTML内容..."
-            ></textarea>
+            <div class="visual-preview">
+              <div class="preview-header">实时预览</div>
+              <iframe
+                ref="visualPreviewRef"
+                :srcdoc="form.content"
+                class="visual-preview-iframe"
+                frameborder="0"
+              ></iframe>
+            </div>
           </div>
+          
           <div v-else-if="editMode === 'rich'" class="rich-editor-wrapper">
-            <!-- 编辑器 -->
+            <div class="rich-toolbar">
+              <button @click.prevent="undo" :disabled="!canUndo" class="toolbar-btn" title="撤销 (Ctrl+Z)">
+                ↶
+              </button>
+              <span class="toolbar-divider"></span>
+              <select @change="execFontWeight" class="toolbar-select" title="字体粗细">
+                <option value="">-- 粗细 --</option>
+                <option value="400">正常 (400)</option>
+                <option value="500">中等 (500)</option>
+                <option value="600">半粗 (600)</option>
+                <option value="700">加粗 (700)</option>
+                <option value="800">特粗 (800)</option>
+                <option value="900">最粗 (900)</option>
+              </select>
+              <span class="toolbar-divider"></span>
+              <select @change="execFontSize" class="toolbar-select" title="字号">
+                <option value="">-- 字号 --</option>
+                <option value="12">12px</option>
+                <option value="14">14px</option>
+                <option value="16">16px</option>
+                <option value="18">18px</option>
+                <option value="20">20px</option>
+                <option value="24">24px</option>
+                <option value="28">28px</option>
+                <option value="32">32px</option>
+              </select>
+              <input type="color" @focus="saveSelection" @input="execForeColor" class="toolbar-color" title="文字颜色" />
+            </div>
             <div
               ref="richEditorRef"
               contenteditable="true"
               class="editor-rich"
-              @compositionstart="isComposing = true"
-              @compositionend="handleCompositionEnd"
+              @mouseup="saveSelection"
+              @keyup="saveSelection"
+              @keydown="handleKeyDown"
               @input="handleRichEditorInput"
-              @blur="handleRichEditorBlur"
             ></div>
           </div>
           <div v-else-if="editMode === 'preview'" class="preview-wrapper">
@@ -227,8 +248,8 @@
           :auto-upload="false"
           :limit="1"
           :on-change="handleFileChange"
-          :on-remove="handleFileRemove"
-          :accept="editMode === 'code' ? '.html,.htm' : '.doc,.docx'"
+
+          accept=".doc,.docx"
           drag
         >
           <el-icon class="el-icon--upload"><upload-filled /></el-icon>
@@ -236,10 +257,7 @@
             将文件拖到此处，或<em>点击上传</em>
           </div>
           <template #tip>
-            <div class="el-upload__tip" style="color: #909399; font-size: 12px;">
-              <span v-if="editMode === 'code'">支持上传 HTML 文件 (.html, .htm)</span>
-              <span v-else>支持上传 Word 文档 (.doc, .docx)</span>
-            </div>
+            <div class="el-upload__tip" style="color: #909399; font-size: 12px;">支持上传 Word 文档 (.doc, .docx)</div>
           </template>
         </el-upload>
         <template #footer>
@@ -271,15 +289,20 @@ const route = useRoute()
 const userStore = useUserStore();
 
 const isEdit = ref(false)
-const editMode = ref('code')
+const editMode = ref('visual') // 默认使用可视化模式
+const visualPreviewRef = ref(null)
 const richEditorRef = ref(null)
 const codeTextareaRef = ref(null)
 const lineNumbersRef = ref(null)
 const uploadRef = ref(null)
 const showImportDialog = ref(false)
 const codeLines = ref([1])
-const isComposing = ref(false) // 是否正在输入中文
+const isExecutingCommand = ref(false) // 是否正在执行命令
 const originalContent = ref('') // 保存原始 HTML 内容
+const savedSelection = ref(null) // 保存的选区
+const historyStack = ref([]) // 历史记录栈（最多30条）
+const historyIndex = ref(-1) // 当前历史位置
+let saveHistoryTimer = null // 防抖定时器
 const protocolList = ref([]) // 协议列表，用于检查文件名重复
 const form = ref({
   filename: '',
@@ -292,7 +315,6 @@ const hasEditPermission = computed(() => {
 })
 
 // 预览功能相关
-const showPreviewParams = ref(false)
 const previewForm = ref({
   protocolType: 'dj', // dj 或 ys
   protocol: '', // about, privacy, vod, vodAgreement, usercancel
@@ -318,12 +340,6 @@ const parameterizedProtocols = {
   'ys_common_about': { protocolType: 'ys', protocol: 'about' },
   'ys_common_privacy': { protocolType: 'ys', protocol: 'privacy' },
   'ys_common_agreement': { protocolType: 'ys', protocol: 'vod' }
-}
-
-// 域名映射
-const DOMAIN_MAP = {
-  dj: 'mp.fun.tv',
-  ys: 'mp.xyhvip.cn'
 }
 
 // 判断是否是参数化协议
@@ -411,6 +427,7 @@ watch(() => form.value.content, () => {
   if (editMode.value === 'preview') {
     generatePreviewUrl()
   }
+  // 不要在这里切换模式！
 })
 
 
@@ -559,33 +576,76 @@ const handleCodeInput = (e) => {
 
 // 处理富文本编辑器输入（实时同步内容）
 const handleRichEditorInput = () => {
-  if (!richEditorRef.value || isComposing.value) return
-
+  if (!richEditorRef.value || isExecutingCommand.value) return
   syncRichEditorContent()
+  saveToHistoryDebounced()
 }
 
-// 处理富文本编辑器失焦（同步内容）
-const handleRichEditorBlur = () => {
-  if (!richEditorRef.value) return
+// 防抖保存历史（500ms内只保存一次）
+const saveToHistoryDebounced = () => {
+  if (saveHistoryTimer) clearTimeout(saveHistoryTimer)
+  saveHistoryTimer = setTimeout(() => {
+    saveToHistory()
+  }, 500)
+}
 
-  syncRichEditorContent()
+// 保存到历史记录
+const saveToHistory = () => {
+  if (!richEditorRef.value) return
+  const content = richEditorRef.value.innerHTML
+  
+  // 如果内容与当前历史相同，不保存
+  if (historyStack.value[historyIndex.value] === content) return
+  
+  // 移除当前索引之后的历史
+  historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+  historyStack.value.push(content)
+  historyIndex.value++
+  
+  // 限制最多30条
+  if (historyStack.value.length > 30) {
+    historyStack.value.shift()
+    historyIndex.value--
+  }
+}
+
+// 是否可以撤销
+const canUndo = computed(() => historyIndex.value > 0)
+
+// 撤销
+const undo = () => {
+  if (!canUndo.value || !richEditorRef.value) return
+  historyIndex.value--
+  isExecutingCommand.value = true
+  richEditorRef.value.innerHTML = historyStack.value[historyIndex.value]
+  setTimeout(() => {
+    isExecutingCommand.value = false
+    syncRichEditorContent()
+  }, 50)
+}
+
+// 处理键盘快捷键
+const handleKeyDown = (e) => {
+  if (e.ctrlKey && e.key === 'z') {
+    e.preventDefault()
+    undo()
+  }
 }
 
 // 同步富文本编辑器内容到 form.value.content
+// 注意：contenteditable 的 innerHTML 已经被浏览器标准化，无法完全保持原始格式
 const syncRichEditorContent = () => {
   if (!richEditorRef.value) return
 
   let htmlContent = ''
 
   if (originalContent.value && isFullHTMLDocument(originalContent.value)) {
-    // 如果是完整HTML文档，需要包装回完整结构
+    // 如枟是完整HTML文档，包装回完整结构
     const bodyContent = richEditorRef.value.innerHTML
-    // 清理富文本编辑器生成的无用类名和样式
     const cleanedBodyContent = cleanRichTextHTML(bodyContent)
     htmlContent = wrapToFullHTML(cleanedBodyContent, originalContent.value)
   } else {
     // 不是完整文档或新建文件，直接使用 innerHTML
-    // 清理富文本编辑器生成的无用类名和样式
     htmlContent = cleanRichTextHTML(richEditorRef.value.innerHTML)
   }
 
@@ -630,41 +690,17 @@ const handleFileChange = async (file) => {
     form.value.filename = `${baseName}.html`
   }
 
-  // 检查文件类型是否符合当前编辑模式
-  if (editMode.value === 'code') {
-    // 代码模式只支持 HTML 文件
-    if (fileExtension !== 'html' && fileExtension !== 'htm') {
-      ElMessage.warning('代码模式只支持导入 HTML 文件 (.html, .htm)')
-      if (uploadRef.value) {
-        uploadRef.value.clearFiles()
-      }
-      return
+  // 只支持 Word 文件
+  if (fileExtension !== 'doc' && fileExtension !== 'docx') {
+    ElMessage.warning('只支持导入 Word 文档 (.doc, .docx)')
+    if (uploadRef.value) {
+      uploadRef.value.clearFiles()
     }
-  } else {
-    // 富文本模式只支持 Word 文件
-    if (fileExtension !== 'doc' && fileExtension !== 'docx') {
-      ElMessage.warning('富文本模式只支持导入 Word 文档 (.doc, .docx)')
-      if (uploadRef.value) {
-        uploadRef.value.clearFiles()
-      }
-      return
-    }
+    return
   }
 
   try {
-    if (fileExtension === 'html' || fileExtension === 'htm') {
-      // 处理 HTML 文件
-      await handleHTMLFile(file.raw)
-    } else if (fileExtension === 'doc' || fileExtension === 'docx') {
-      // 处理 Word 文档
-      await handleWordFile(file.raw)
-    } else {
-      ElMessage.warning('不支持的文件格式')
-      if (uploadRef.value) {
-        uploadRef.value.clearFiles()
-      }
-      return
-    }
+    await handleWordFile(file.raw)
 
     // 导入成功后关闭对话框
     showImportDialog.value = false
@@ -674,39 +710,6 @@ const handleFileChange = async (file) => {
   }
 }
 
-// 处理 HTML 文件
-const handleHTMLFile = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const content = e.target.result
-      form.value.content = content
-
-      // 切换到代码模式显示 HTML
-      editMode.value = 'code'
-      updateLineNumbers()
-
-      // 等待 DOM 更新后设置富文本编辑器内容
-      nextTick(() => {
-        if (richEditorRef.value) {
-          if (isFullHTMLDocument(content)) {
-            const displayContent = extractBodyContent(content)
-            richEditorRef.value.innerHTML = displayContent
-          } else {
-            richEditorRef.value.innerHTML = content
-          }
-        }
-        originalContent.value = content
-      })
-
-      ElMessage.success('HTML 文件导入成功')
-      resolve()
-    }
-    reader.onerror = reject
-    reader.readAsText(file, 'utf-8')
-  })
-}
-
 // 处理 Word 文档
 const handleWordFile = (file) => {
   return new Promise((resolve, reject) => {
@@ -714,10 +717,33 @@ const handleWordFile = (file) => {
     reader.onload = (e) => {
       const arrayBuffer = e.target.result
 
-      // 使用 mammoth 将 Word 转换为 HTML
-      // 配置选项：尽量简化样式转换，减少无用类名
+      // 使用 mammoth 将 Word 转换为 HTML，配置样式映射以保留更多格式
       mammoth.convertToHtml(
-        { arrayBuffer: arrayBuffer }
+        { arrayBuffer: arrayBuffer },
+        {
+          styleMap: [
+            // 保留段落样式
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "p[style-name='Heading 3'] => h3:fresh",
+            "p[style-name='标题 1'] => h1:fresh",
+            "p[style-name='标题 2'] => h2:fresh",
+            "p[style-name='标题 3'] => h3:fresh",
+            // 保留列表样式
+            "p[style-name='List Paragraph'] => p:fresh",
+            "p[style-name='列表段落'] => p:fresh"
+          ],
+          // 转换内联样式
+          convertImage: mammoth.images.imgElement((image) => {
+            return image.read("base64").then((imageBuffer) => {
+              return {
+                src: "data:" + image.contentType + ";base64," + imageBuffer
+              }
+            })
+          }),
+          // 保留原始样式
+          includeDefaultStyleMap: true
+        }
       )
         .then((result) => {
           const html = result.value
@@ -726,14 +752,17 @@ const handleWordFile = (file) => {
           // 显示转换警告（如果有）
           if (messages.length > 0) {
             console.warn('Word 转换警告:', messages)
+            console.warn('部分样式可能未完全保留（如字体、颜色、对齐方式等）')
           }
 
+          // 清理和优化 HTML
+          const cleanedHTML = cleanWordHTML(html)
           // 将转换后的 HTML 包装成完整的 HTML 文档
-          const fullHTML = wrapWordHTML(html)
+          const fullHTML = wrapWordHTML(cleanedHTML)
           form.value.content = fullHTML
 
-          // 切换到代码模式显示 HTML
-          editMode.value = 'code'
+          // 切换到可视化模式，方便查看效果和调整
+          editMode.value = 'visual'
           updateLineNumbers()
 
           // 等待 DOM 更新后设置富文本编辑器内容
@@ -745,7 +774,7 @@ const handleWordFile = (file) => {
             originalContent.value = fullHTML
           })
 
-          ElMessage.success('Word 文档导入成功')
+          ElMessage.success('Word 文档导入成功，请在右侧预览中检查样式')
           resolve()
         })
         .catch((error) => {
@@ -817,6 +846,21 @@ const cleanRichTextHTML = (html) => {
   }
 }
 
+// 清理 Word 生成的 HTML
+const cleanWordHTML = (html) => {
+  // 移除空段落
+  html = html.replace(/<p>\s*<\/p>/g, '')
+  // 移除多余的空白字符
+  html = html.replace(/\s+/g, ' ')
+  // 优化段落间距（添加基本样式）
+  html = html.replace(/<p>/g, '<p style="margin: 8px 0;">')
+  // 优化标题样式
+  html = html.replace(/<h1>/g, '<h1 style="margin: 16px 0; font-size: 24px; font-weight: bold;">')
+  html = html.replace(/<h2>/g, '<h2 style="margin: 14px 0; font-size: 20px; font-weight: bold;">')
+  html = html.replace(/<h3>/g, '<h3 style="margin: 12px 0; font-size: 18px; font-weight: bold;">')
+  return html
+}
+
 // 将 Word 转换的 HTML 包装成完整的 HTML 文档
 const wrapWordHTML = (html) => {
   return `<!DOCTYPE html>
@@ -825,16 +869,24 @@ const wrapWordHTML = (html) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>协议文档</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    p { margin: 8px 0; }
+    h1, h2, h3 { margin-top: 16px; margin-bottom: 8px; }
+    ul, ol { margin: 8px 0; padding-left: 24px; }
+    li { margin: 4px 0; }
+  </style>
 </head>
 <body>
 ${html}
 </body>
 </html>`
-}
-
-// 移除文件
-const handleFileRemove = () => {
-  // 文件移除时不清空内容，用户可以继续编辑
 }
 
 // 更新行号
@@ -854,9 +906,75 @@ const handleCodeScroll = () => {
   }
 }
 
-// 中文输入结束
-const handleCompositionEnd = (e) => {
-  isComposing.value = false
+// 保存当前选区
+const saveSelection = () => {
+  const selection = window.getSelection()
+  if (selection.rangeCount > 0) {
+    savedSelection.value = selection.getRangeAt(0)
+  }
+}
+
+// 恢复选区
+const restoreSelection = () => {
+  if (savedSelection.value) {
+    const selection = window.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(savedSelection.value)
+  }
+}
+
+// 应用样式到选中文本
+const applyStyle = (styleName, styleValue) => {
+  isExecutingCommand.value = true
+  
+  // 恢复之前保存的选区
+  restoreSelection()
+  
+  const selection = window.getSelection()
+  if (!selection.rangeCount) return
+  
+  const range = selection.getRangeAt(0)
+  const span = document.createElement('span')
+  span.style[styleName] = styleValue
+  
+  try {
+    range.surroundContents(span)
+  } catch {
+    const fragment = range.extractContents()
+    span.appendChild(fragment)
+    range.insertNode(span)
+  }
+  
+  setTimeout(() => {
+    isExecutingCommand.value = false
+    syncRichEditorContent()
+    saveToHistory()
+  }, 100)
+}
+
+// 设置字体粗细
+const execFontWeight = (e) => {
+  const weight = e.target.value
+  if (weight) {
+    applyStyle('fontWeight', weight)
+    e.target.value = ''
+  }
+}
+
+// 设置字号
+const execFontSize = (e) => {
+  const size = e.target.value
+  if (size) {
+    applyStyle('fontSize', size + 'px')
+    e.target.value = ''
+  }
+}
+
+// 设置文字颜色
+const execForeColor = (e) => {
+  if (e.target.value) {
+    applyStyle('color', e.target.value)
+  }
 }
 
 // 检查是否是完整的 HTML 文档（包含 html 和 body 标签）
@@ -1024,7 +1142,6 @@ const fetchProtocol = async () => {
   isEdit.value = true
   try {
     const res = await getProtocol(filename)
-    console.log('协议数据:', res.data) // 调试用
     form.value = {
       filename: res.data.filename || filename,
       content: res.data.content || ''
@@ -1048,37 +1165,32 @@ const fetchProtocol = async () => {
   }
 }
 
-// 监听编辑模式切换（处理富文本、代码和预览模式）
+// 监听编辑模式切换（处理富文本、代码、可视化和预览模式）
 watch(editMode, async (newMode) => {
   await nextTick()
   if (newMode === 'rich' && richEditorRef.value && form.value.content) {
-    // 如果是完整 HTML 文档，只提取 body 内容显示
     const displayContent = extractBodyContent(form.value.content)
     richEditorRef.value.innerHTML = displayContent
-    // 保存原始内容
     originalContent.value = form.value.content
-    // 保存原始 HTML 内容（用于参数替换）
     originalHTMLContent.value = form.value.content
+    // 初始化历史记录
+    historyStack.value = [displayContent]
+    historyIndex.value = 0
   } else if (newMode === 'preview') {
-    // 切换到预览模式
     if (isParameterizedProtocol.value) {
-      // 确保保存了原始内容
       if (!originalHTMLContent.value && form.value.content) {
         originalHTMLContent.value = form.value.content
       }
     }
-    // 生成预览链接
     generatePreviewUrl()
   } else {
-    // 切换到其他模式时清理预览状态
     previewUrl.value = ''
     previewError.value = ''
     if (previewUrlTimer) {
       clearTimeout(previewUrlTimer)
       previewUrlTimer = null
     }
-    if (newMode === 'code') {
-      // 切换到代码模式时更新行号
+    if (newMode === 'visual') {
       updateLineNumbers()
     }
   }
@@ -1086,7 +1198,7 @@ watch(editMode, async (newMode) => {
 
 // 监听内容变化，更新行号
 watch(() => form.value.content, () => {
-  if (editMode.value === 'code') {
+  if (editMode.value === 'visual') {
     updateLineNumbers()
   }
 })
@@ -1132,30 +1244,20 @@ const handleSave = async () => {
     }
   }
 
-  // 富文本模式：直接使用 innerHTML（浏览器会标准化格式，这是无法避免的）
-  // 如果必须保持格式不变，请使用代码模式编辑
+  // 富文本模式：注意 contenteditable 会导致 HTML 标准化
   if (editMode.value === 'rich' && richEditorRef.value) {
     let htmlContent = ''
 
     if (originalContent.value && isFullHTMLDocument(originalContent.value)) {
-      // 如果是完整HTML文档，需要包装回完整结构
       const bodyContent = richEditorRef.value.innerHTML
-      // 清理富文本编辑器生成的无用类名和样式
       const cleanedBodyContent = cleanRichTextHTML(bodyContent)
       htmlContent = wrapToFullHTML(cleanedBodyContent, originalContent.value)
     } else {
-      // 不是完整文档或新建文件，直接使用 innerHTML
-      // 清理富文本编辑器生成的无用类名和样式
       htmlContent = cleanRichTextHTML(richEditorRef.value.innerHTML)
+      htmlContent = formatHTML(htmlContent)
     }
 
-    // 格式化 HTML
-    form.value.content = formatHTML(htmlContent)
-  } else if (editMode.value === 'code') {
-    // 代码模式：也进行格式化（如果内容存在）
-    if (form.value.content) {
-      form.value.content = formatHTML(form.value.content)
-    }
+    form.value.content = htmlContent
   }
 
   if (!form.value.content) {
@@ -1273,60 +1375,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* 模式提示样式 */
-.mode-tips {
-  margin-bottom: 14px;
-  margin-left: 100px; /* 与表单项 label-width 对齐 */
-}
-
-.tip-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 4px 6px;
-  border-radius: 4px;
-  margin-bottom: 6px;
-  line-height: 1.5;
-  font-size: 13px;
-}
-
-.tip-item:last-child {
-  margin-bottom: 0;
-}
-
-.tip-warning {
-  background-color: #fef0e6;
-  border: 1px solid #f5dab1;
-  color: #e6a23c;
-}
-
-.tip-info {
-  background-color: #e8f4fd;
-  border: 1px solid #b3d8ff;
-  color: #409eff;
-}
-
-.tip-icon {
-  font-size: 14px;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.tip-content {
-  flex: 1;
-  color: #606266;
-}
-
-.tip-content strong {
-  color: #303133;
-  font-weight: 600;
-}
-
-.editor-wrapper {
-  width: 100%;
-}
-
 .code-editor-wrapper {
   display: flex;
   width: 100%;
@@ -1378,17 +1426,101 @@ onMounted(async () => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 富文本工具栏 */
+.rich-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #dcdfe6;
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  padding: 6px 10px;
+  border: 1px solid #dcdfe6;
+  background-color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background-color: #ecf5ff;
+  border-color: #409eff;
+  color: #409eff;
+}
+
+.toolbar-btn:active {
+  background-color: #409eff;
+  color: white;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: #f5f7fa;
+  color: #c0c4cc;
+}
+
+.toolbar-btn:disabled:hover {
+  background-color: #f5f7fa;
+  border-color: #dcdfe6;
+  color: #c0c4cc;
+}
+
+.toolbar-select {
+  padding: 6px 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 13px;
+  height: 32px;
+}
+
+.toolbar-select:hover {
+  border-color: #409eff;
+}
+
+.toolbar-color {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.toolbar-color:hover {
+  border-color: #409eff;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #dcdfe6;
+  margin: 0 4px;
 }
 
 .editor-rich {
-  min-height: 600px;
-  max-height: 800px;
+  flex: 1;
+  min-height: 550px;
   padding: 15px;
   background: white;
   overflow-y: auto;
   overflow-x: auto;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
 }
 
 /* 富文本编辑器中的表格样式 */
@@ -1495,6 +1627,65 @@ onMounted(async () => {
   color: #606266;
   font-size: 13px;
   font-weight: 500;
+}
+
+/* 可视化编辑模式样式 */
+.visual-editor-wrapper {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  height: 600px;
+}
+
+.visual-preview {
+  flex: 0 0 35%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.preview-header {
+  background-color: #f5f7fa;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  border-bottom: 1px solid #dcdfe6;
+}
+
+.visual-preview-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: white;
+}
+
+.visual-code {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.code-header {
+  background-color: #f5f7fa;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  border-bottom: 1px solid #dcdfe6;
+}
+
+.visual-code .code-editor-wrapper {
+  flex: 1;
+  height: auto;
+  border: none;
+  border-radius: 0;
 }
 
 /* 预览模式样式 */

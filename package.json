@@ -13,6 +13,7 @@
     "element-plus": "^2.4.4",
     "mammoth": "^1.6.0",
     "pinia": "^3.0.4",
+    "prettier": "^3.7.1",
     "vue": "^3.3.4",
     "vue-router": "^4.2.5"
   },
