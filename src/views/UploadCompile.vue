@@ -12,73 +12,24 @@
               </el-button>
             </div>
 
-            <!-- 分支状态 -->
+            <!-- Git 状态 -->
             <div class="git-status-wrapper" style="margin-bottom: 20px;">
-              <div class="git-status">
-                <div class="status-item">
-                  <span class="status-label">当前分支：</span>
-                  <el-tag size="small">{{ branchStatus.current_branch || '-' }}</el-tag>
-                </div>
-                <div class="status-item status-item-with-button">
-                  <span class="status-label">工作区状态：</span>
-                  <el-tag :type="gitStatus.is_clean ? 'success' : 'warning'" size="small">
-                    {{ gitStatus.is_clean ? '干净' : '有变更' }}
-                  </el-tag>
-                  <el-button
-                    type="primary"
-                    @click="handlePull"
-                    :loading="pulling"
-                    :disabled="!gitStatus.is_clean"
-                    size="small"
-                    style="margin-left: 12px;"
-                  >
-                    <el-icon><Download /></el-icon>
-                    拉取最新代码
-                  </el-button>
-                  <span v-if="!gitStatus.is_clean" style="margin-left: 8px; color: #909399; font-size: 12px;">
-                    工作区不干净时无法拉取
-                  </span>
-                </div>
-                <div class="status-item" v-if="branchStatus.has_remote">
-                  <span class="status-label">领先远程：</span>
-                  <el-tag :type="branchStatus.ahead > 0 ? 'warning' : 'info'" size="small">
-                    {{ branchStatus.ahead }} 个提交
-                  </el-tag>
-                </div>
-                <div class="status-item" v-if="branchStatus.has_remote">
-                  <span class="status-label">落后远程：</span>
-                  <el-tag :type="branchStatus.behind > 0 ? 'danger' : 'info'" size="small">
-                    {{ branchStatus.behind }} 个提交
-                  </el-tag>
-                </div>
-                <!-- 变更文件列表（默认折叠，最多显示5条，超出可滚动） -->
-                <div v-if="gitStatus.changed_files && gitStatus.changed_files.length > 0" class="changed-files-section">
-                  <div class="changed-files-header" @click="showChangedFiles = !showChangedFiles">
-                    <span class="changed-files-title">
-                      <el-icon class="changed-files-icon" :class="{ 'is-expanded': showChangedFiles }">
-                        <ArrowRight />
-                      </el-icon>
-                      变更文件
-                    </span>
-                    <el-tag type="info" size="small" class="changed-files-count">
-                      {{ gitStatus.changed_files.length }}
-                    </el-tag>
-                  </div>
-                  <el-collapse-transition>
-                    <div v-show="showChangedFiles" class="changed-files-list">
-                      <div
-                        v-for="file in gitStatus.changed_files"
-                        :key="file.filename"
-                        class="changed-file-item"
-                      >
-                        <el-tag :type="getStatusType(file.status)" size="small" class="file-status-tag">
-                          {{ formatStatus(file.status) }}
-                        </el-tag>
-                        <span class="file-name">{{ file.filename }}</span>
-                      </div>
-                    </div>
-                  </el-collapse-transition>
-                </div>
+              <GitStatusPanel :git-status="gitStatus" :branch-status="branchStatus" />
+              <!-- 拉取按钮区域 -->
+              <div style="margin-top: 15px;">
+                <el-button
+                  type="primary"
+                  @click="handlePull"
+                  :loading="pulling"
+                  :disabled="!gitStatus.is_clean"
+                  size="small"
+                >
+                  <el-icon><Download /></el-icon>
+                  拉取最新代码
+                </el-button>
+                <span v-if="!gitStatus.is_clean" style="margin-left: 8px; color: #e6a23c; font-size: 12px;">
+                  工作区有变更时不允许拉取
+                </span>
               </div>
             </div>
 
@@ -121,58 +72,7 @@
 
             <!-- Git 状态信息 -->
             <div class="git-status-wrapper" style="margin-bottom: 20px;">
-              <div class="git-status">
-                <div class="status-item">
-                  <span class="status-label">当前分支：</span>
-                  <el-tag size="small">{{ gitStatus.current_branch || '-' }}</el-tag>
-                </div>
-                <div class="status-item">
-                  <span class="status-label">工作区状态：</span>
-                  <el-tag :type="gitStatus.is_clean ? 'success' : 'warning'" size="small">
-                    {{ gitStatus.is_clean ? '干净' : '有变更' }}
-                  </el-tag>
-                </div>
-                <div class="status-item" v-if="branchStatus.has_remote">
-                  <span class="status-label">领先远程：</span>
-                  <el-tag :type="branchStatus.ahead > 0 ? 'warning' : 'info'" size="small">
-                    {{ branchStatus.ahead }} 个提交
-                  </el-tag>
-                </div>
-                <div class="status-item" v-if="branchStatus.has_remote">
-                  <span class="status-label">落后远程：</span>
-                  <el-tag :type="branchStatus.behind > 0 ? 'danger' : 'info'" size="small">
-                    {{ branchStatus.behind }} 个提交
-                  </el-tag>
-                </div>
-                <!-- 变更文件列表（默认折叠，最多显示5条，超出可滚动） -->
-                <div v-if="gitStatus.changed_files && gitStatus.changed_files.length > 0" class="changed-files-section">
-                  <div class="changed-files-header" @click="showChangedFilesDeploy = !showChangedFilesDeploy">
-                    <span class="changed-files-title">
-                      <el-icon class="changed-files-icon" :class="{ 'is-expanded': showChangedFilesDeploy }">
-                        <ArrowRight />
-                      </el-icon>
-                      变更文件
-                    </span>
-                    <el-tag type="info" size="small" class="changed-files-count">
-                      {{ gitStatus.changed_files.length }}
-                    </el-tag>
-                  </div>
-                  <el-collapse-transition>
-                    <div v-show="showChangedFilesDeploy" class="changed-files-list">
-                      <div
-                        v-for="file in gitStatus.changed_files"
-                        :key="file.filename"
-                        class="changed-file-item"
-                      >
-                        <el-tag :type="getStatusType(file.status)" size="small" class="file-status-tag">
-                          {{ formatStatus(file.status) }}
-                        </el-tag>
-                        <span class="file-name">{{ file.filename }}</span>
-                      </div>
-                    </div>
-                  </el-collapse-transition>
-                </div>
-              </div>
+              <GitStatusPanel :git-status="gitStatus" :branch-status="branchStatus" />
             </div>
 
             <!-- 提交区域 -->
@@ -228,6 +128,64 @@
             </div>
           </div>
         </el-tab-pane>
+
+        <!-- Tab 3: 发布上线 -->
+        <el-tab-pane label="发布上线" name="release">
+          <div class="tab-content">
+            <div class="section-title" style="font-size: 15px; margin-bottom: 12px;">生产环境发布</div>
+
+            <el-alert
+              type="warning"
+              :closable="false"
+              style="margin-bottom: 15px; font-size: 12px;"
+              class="small-title-alert"
+            >
+              <template #default>
+                <div style="font-size: 13px;">生产环境发布需要运维人员协助操作，请确保代码已完成测试并推送到远程仓库</div>
+              </template>
+            </el-alert>
+
+            <div class="release-info">
+              <el-card class="contact-card">
+                <template #header>
+                  <div class="card-header">
+                    <span>运维联系方式</span>
+                  </div>
+                </template>
+                <div class="contact-content">
+                  <div class="contact-item">
+                    <el-icon class="contact-icon"><User /></el-icon>
+                    <span class="contact-label">运维负责人：</span>
+                    <span class="contact-value">郭江勇</span>
+                  </div>
+                  <div class="contact-item">
+                    <el-icon class="contact-icon"><Message /></el-icon>
+                    <span class="contact-label">邮箱地址：</span>
+                    <el-link type="primary" href="mailto:guojy@fun.tv">guojy@fun.tv</el-link>
+                  </div>
+                </div>
+              </el-card>
+
+              <el-card class="process-card" style="margin-top: 15px;">
+                <template #header>
+                  <div class="card-header">
+                    <span>发布流程</span>
+                  </div>
+                </template>
+                <div class="process-content">
+                  <el-steps direction="vertical" class="compact-steps">
+                    <el-step title="代码准备" description="确保代码已提交并推送到远程仓库" status="wait" />
+                    <el-step title="联系运维" description="发送邮件给运维人员，说明发布需求" status="finish" />
+                    <el-step title="运维操作" description="运维人员执行生产环境部署" status="wait" />
+                    <el-step title="验证上线" description="确认生产环境功能正常" status="wait" />
+                  </el-steps>
+                </div>
+              </el-card>
+
+
+            </div>
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -236,7 +194,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, ArrowRight } from '@element-plus/icons-vue'
+import { Download, User, Message } from '@element-plus/icons-vue'
+import GitStatusPanel from '../components/GitStatusPanel.vue'
 import { getGitStatus, getGitLog, getBranchStatus, gitPull, gitDeploy } from '../api/git'
 import {useUserStore} from "@/stores/user.js";
 
@@ -269,6 +228,8 @@ const commitForm = ref({
 })
 const deploySteps = ref([])
 
+
+
 // 检查用户是否有编辑权限
 const hasEditPermission = computed(() => {
   return userStore.role === 'admin' || userStore.role === 'editor'
@@ -280,24 +241,6 @@ const paginatedLog = computed(() => {
   const end = start + logPageSize
   return gitLog.value.slice(start, end)
 })
-
-// 格式化状态（使用 Git 原始状态）
-const formatStatus = (status) => {
-  // Git status 状态码说明：
-  const statusMap = {
-    ' M': 'Modified (工作区修改，未暂存)', // 第一个字符空格（暂存区无变化），第二个 M（工作区修改）
-    'M ': 'Staged (暂存区修改，待提交)',  // 第一个 M（暂存区修改），第二个空格（工作区无变化）
-    'A ': 'Added (已暂存新增，待提交)',   // 第一个 A（暂存区新增），第二个空格（工作区无变化）
-    'D ': 'Deleted (已暂存删除，待提交)', // 第一个 D（暂存区删除），第二个空格（工作区无变化）→ 格式正确！
-    ' D': 'Deleted (工作区删除，未暂存)', // 补充：工作区删了但没暂存的场景（避免遗漏）
-    '??': 'Untracked (未跟踪，未加入版本控制)',
-    'MM': 'Modified (暂存区+工作区均修改)', // 两个 M 都有值，无空格
-    'R ': 'Renamed (已暂存重命名，待提交)',
-    'C ': 'Copied (已暂存复制，待提交)',
-    'AD': 'Added & Deleted (暂存区已新增，工作区已删除)' // 无空格（两个位置都有状态：A=暂存区，D=工作区）
-  };
-  return statusMap[status] || status
-}
 
 // 获取状态类型
 const getStatusType = (status) => {
@@ -389,20 +332,11 @@ const fetchBranchStatus = async () => {
 
 // Tab 切换
 const handleTabChange = (tabName) => {
-  if (tabName === 'pull') {
-    fetchPullData()
-  } else if (tabName === 'deploy') {
-    fetchStatus()
-  }
+  // 切换tab不再自动刷新
 }
 
 // 拉取最新代码
 const handlePull = async () => {
-  if (!gitStatus.value.is_clean) {
-    ElMessage.warning('工作区不干净，请先提交或暂存变更')
-    return
-  }
-
   pulling.value = true
   try {
     const res = await gitPull()
@@ -414,6 +348,8 @@ const handlePull = async () => {
     pulling.value = false
   }
 }
+
+
 
 // 提交并部署
 const handleDeploy = async () => {
@@ -520,105 +456,6 @@ onMounted(async () => {
   margin: 0 0 15px 0;
 }
 
-.changed-files-section {
-  margin-top: 8px;
-  width: 100%;
-}
-
-.changed-files-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 4px 0;
-  user-select: none;
-  transition: color 0.2s;
-}
-
-.changed-files-header:hover {
-  color: #409eff;
-}
-
-.changed-files-title {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #606266;
-}
-
-.changed-files-icon {
-  transition: transform 0.3s;
-  font-size: 12px;
-}
-
-.changed-files-icon.is-expanded {
-  transform: rotate(90deg);
-}
-
-.changed-files-count {
-  margin-left: auto;
-}
-
-.changed-files-list {
-  margin-top: 8px;
-  width: 100%;
-}
-
-.changed-file-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  width: 100%;
-}
-
-.changed-file-item:last-child {
-  border-bottom: none;
-}
-
-.file-status-tag {
-  flex-shrink: 0;
-  min-width: 80px;
-  text-align: center;
-}
-
-.file-name {
-  flex: 1;
-  word-break: break-all;
-  font-size: 14px;
-  color: #606266;
-}
-
-.git-status {
-  flex: 0 0 auto;
-  min-width: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-item-with-button {
-  flex-wrap: wrap;
-}
-
-.status-label {
-  font-size: 14px;
-  color: #606266;
-  min-width: 80px;
-}
-
-.action-section {
-  margin-bottom: 20px;
-}
-
 .changed-files h3,
 .commit-section h3,
 .deploy-steps h3 {
@@ -654,5 +491,57 @@ onMounted(async () => {
 .no-output {
   color: #909399;
   font-style: italic;
+}
+
+.release-info {
+  max-width: 800px;
+}
+
+.contact-card,
+.process-card {
+  margin-bottom: 15px;
+}
+
+.card-header {
+  font-weight: 500;
+  color: #303133;
+  font-size: 14px;
+}
+
+.contact-content {
+  padding: 8px 0;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.contact-icon {
+  color: #409eff;
+  font-size: 14px;
+}
+
+.contact-label {
+  font-weight: 500;
+  color: #606266;
+  min-width: 80px;
+  font-size: 13px;
+}
+
+.contact-value {
+  color: #303133;
+  font-size: 13px;
+}
+
+.process-content {
+  padding: 8px 0;
+}
+
+.small-title-alert :deep(.el-alert__title) {
+  font-size: 12px;
 }
 </style>
