@@ -12,16 +12,54 @@
       </template>
 
       <el-form :model="form" label-width="100px">
-        <el-form-item label="文件名">
-          <el-input v-model="form.filename" placeholder="例如: ys_common_agreement.html" :disabled="isEdit" />
-        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="10">
+            <el-form-item label="文件名">
+              <el-input v-model="form.filename" placeholder="例如: ys_common_agreement.html" :disabled="isEdit" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="应用名称">
+              <el-input v-model="form.app_name" placeholder="例如: 长江云短剧" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="10">
+            <el-form-item label="应用类型">
+              <el-input v-model="form.app_type" placeholder="例如: miniapp" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="描述">
+              <el-input v-model="form.description" placeholder="请输入协议描述" clearable />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
         <el-form-item label="编辑模式">
-          <el-radio-group v-model="editMode">
-            <el-radio value="visual">可视化编辑（左侧预览，右侧代码）</el-radio>
-            <el-radio value="rich">富文本模式</el-radio>
-            <el-radio v-if="isEdit && isParameterizedProtocol" value="preview">预览模式（仅参数化协议）</el-radio>
-          </el-radio-group>
+          <div>
+            <el-radio-group v-model="editMode">
+              <el-radio value="visual">可视化编辑</el-radio>
+              <el-radio value="rich">富文本模式</el-radio>
+              <el-radio v-if="isEdit && isParameterizedProtocol" value="preview">预览模式</el-radio>
+            </el-radio-group>
+            <div class="mode-tips">
+              <div v-if="editMode === 'visual'" class="tip-text">
+                <el-icon><InfoFilled /></el-icon>
+                <span>左侧编辑代码，右侧实时预览效果，支持 JavaScript 执行</span>
+              </div>
+              <div v-else-if="editMode === 'rich'" class="tip-text">
+                <el-icon><InfoFilled /></el-icon>
+                <span>快速编辑文本内容和样式，不支持 JavaScript 预览（需查看效果请切换到可视化模式）</span>
+              </div>
+              <div v-else-if="editMode === 'preview'" class="tip-text">
+                <el-icon><InfoFilled /></el-icon>
+                <span>填写参数预览最终效果，适用于参数化协议</span>
+              </div>
+            </div>
+          </div>
         </el-form-item>
 
 
@@ -38,8 +76,8 @@
             <span style="margin-left: 8px; color: #909399; font-size: 12px;">支持 Word (.doc, .docx) 文件</span>
           </div>
 
-          <!-- 预览模式：参数输入表单 -->
-          <el-card v-if="editMode === 'preview' && isParameterizedProtocol" class="preview-params-card" shadow="never">
+          <!-- 预览模式：参数输入表单（动态渲染） -->
+          <el-card v-if="editMode === 'preview' && protocolConfig" class="preview-params-card" shadow="never">
             <template #header>
               <div class="params-header">
                 <el-icon><Setting /></el-icon>
@@ -56,96 +94,24 @@
                 </el-button>
               </div>
             </template>
-            <el-form :model="previewForm" label-width="120px" size="default" class="preview-params-form" :style="{ width: '100%' }">
-              <!-- 通用字段 -->
-              <el-row :gutter="20">
-                <el-col :span="10" v-if="showPreviewField('name')">
-                  <el-form-item label="应用名称">
-                    <el-input
-                      v-model="previewForm.params.name"
-                      placeholder="例如: 长江云短剧"
-                      clearable
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12" v-if="showPreviewField('company')">
-                  <el-form-item label="公司名称">
-                    <el-input
-                      v-model="previewForm.params.company"
-                      placeholder="例如: 湖北长江云新媒体集团有限公司"
-                      clearable
-                    />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <!-- 短剧 about 特有字段 -->
-              <el-row :gutter="20" v-if="showPreviewField('address') || showPreviewField('postcode')">
-                <el-col :span="12" v-if="showPreviewField('address')">
-                  <el-form-item label="地址">
-                    <el-input
-                      v-model="previewForm.params.address"
-                      type="textarea"
-                      :rows="2"
-                      placeholder="请输入地址"
-                      clearable
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12" v-if="showPreviewField('postcode')">
-                  <el-form-item label="邮编">
-                    <el-input
-                      v-model="previewForm.params.postcode"
-                      placeholder="例如: 430073"
-                      clearable
-                    />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <!-- 影视通用字段 -->
-              <el-row :gutter="20">
-                <el-col :span="12" v-if="showPreviewField('briefCompany')">
-                  <el-form-item label="公司简称">
-                    <el-input
-                      v-model="previewForm.params.briefCompany"
-                      placeholder="例如: 易橙"
-                      clearable
-                    />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <!-- vod 协议特有字段 -->
-              <template v-if="previewForm.protocol === 'vod' || previewForm.protocol === 'vodAgreement'">
-                <el-row :gutter="20">
-                  <el-col :span="12">
-                    <el-form-item label="历史版本链接">
-                      <el-input
-                        v-model="previewForm.params.historyVersion.href"
-                        placeholder="例如: https://mp.xyhvip.cn/static/notice/xxx.html"
-                        clearable
-                      />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="10">
-                    <el-form-item label="历史版本日期">
-                      <el-input
-                        v-model="previewForm.params.historyVersion.date"
-                        placeholder="例如: 2024年07月09日"
-                        clearable
-                      />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-              </template>
+            <el-form :model="previewForm" label-width="120px" size="default" class="preview-params-form">
+              <DynamicFormFields
+                :fields="protocolConfig.fields"
+                v-model="previewForm.params"
+                label-width="100px"
+              />
             </el-form>
           </el-card>
 
           <!-- 可视化编辑模式：左侧代码，右侧预览 -->
-          <div v-if="editMode === 'visual'" class="visual-editor-wrapper">
+          <div v-if="editMode === 'visual'" class="visual-editor-wrapper" :class="{ 'fullscreen': isFullscreen }">
             <div class="visual-code">
-              <div class="code-header">HTML 代码</div>
+              <div class="code-header">
+                <span>HTML 代码</span>
+                <el-button text @click="toggleFullscreen" class="fullscreen-btn">
+                  <el-icon><Close v-if="isFullscreen" /><FullScreen v-else /></el-icon>
+                </el-button>
+              </div>
               <div class="code-editor-wrapper">
                 <div class="line-numbers" ref="lineNumbersRef">
                   <div
@@ -168,15 +134,19 @@
               <div class="preview-header">实时预览</div>
               <iframe
                 ref="visualPreviewRef"
-                :srcdoc="form.content"
+                :srcdoc="visualPreviewContent"
                 class="visual-preview-iframe"
                 frameborder="0"
               ></iframe>
             </div>
           </div>
-          
-          <div v-else-if="editMode === 'rich'" class="rich-editor-wrapper">
+
+          <div v-else-if="editMode === 'rich'" class="rich-editor-wrapper" :class="{ 'fullscreen': isFullscreen }">
             <div class="rich-toolbar">
+              <el-button text @click="toggleFullscreen" class="fullscreen-btn-toolbar">
+                <el-icon><Close v-if="isFullscreen" /><FullScreen v-else /></el-icon>
+              </el-button>
+              <span class="toolbar-divider"></span>
               <button @click.prevent="undo" :disabled="!canUndo" class="toolbar-btn" title="撤销 (Ctrl+Z)">
                 ↶
               </button>
@@ -214,7 +184,13 @@
               @input="handleRichEditorInput"
             ></div>
           </div>
-          <div v-else-if="editMode === 'preview'" class="preview-wrapper">
+          <div v-else-if="editMode === 'preview'" class="preview-wrapper" :class="{ 'fullscreen': isFullscreen }">
+            <div class="preview-header-bar">
+              <span>预览</span>
+              <el-button text @click="toggleFullscreen" class="fullscreen-btn">
+                <el-icon><Close v-if="isFullscreen" /><FullScreen v-else /></el-icon>
+              </el-button>
+            </div>
             <!-- 预览内容（使用后端接口） -->
             <div v-if="previewLoading" style="padding: 20px; text-align: center; color: #909399;">
               <el-icon class="is-loading"><Loading /></el-icon>
@@ -278,15 +254,37 @@ import {
   WarningFilled,
   Setting,
   Refresh,
+  InfoFilled,
+  FullScreen,
+  Close,
 } from '@element-plus/icons-vue'
 import mammoth from 'mammoth'
 import { getProtocol, createProtocol, updateProtocol, getProtocolList } from '../api/protocol'
 import { createPastebinPreview } from '../api/pastebin'
-import {useUserStore} from "@/stores/user.js";
+import { useUserStore } from '@/stores/user.js'
+import { getProtocolConfig, getNestedValue, setNestedValue } from '@/config/protocolParams'
+import { createScriptTag, injectScript, inlineUtilsScript } from '@/utils/scriptInjector'
+import { isFullHTMLDocument, extractBodyContent, wrapToFullHTML, optimizeHTMLStyles, wrapWordHTML, formatHTML, cleanRichTextHTML } from '@/utils/htmlFormatter'
+import DynamicFormFields from '@/components/DynamicFormFields.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore();
+
+
+// 构建参数配置对象（只包含有值的参数）
+const buildParamsConfig = () => {
+  const config = {}
+  if (protocolConfig.value) {
+    protocolConfig.value.fields.forEach(field => {
+      const value = getNestedValue(previewForm.value.params, field.key)
+      if (value) {
+        setNestedValue(config, field.key, value)
+      }
+    })
+  }
+  return config
+}
 
 const isEdit = ref(false)
 const editMode = ref('visual') // 默认使用可视化模式
@@ -306,7 +304,10 @@ let saveHistoryTimer = null // 防抖定时器
 const protocolList = ref([]) // 协议列表，用于检查文件名重复
 const form = ref({
   filename: '',
-  content: ''
+  content: '',
+  app_name: '',
+  app_type: '',
+  description: ''
 })
 
 // 检查用户是否有编辑权限
@@ -316,54 +317,41 @@ const hasEditPermission = computed(() => {
 
 // 预览功能相关
 const previewForm = ref({
-  protocolType: 'dj', // dj 或 ys
-  protocol: '', // about, privacy, vod, vodAgreement, usercancel
-  params: {
-    name: '',
-    company: '',
-    address: '',
-    postcode: '',
-    briefCompany: '',
-    historyVersion: {
-      href: '',
-      date: ''
-    }
-  }
+  params: {}
 })
 
-// 支持的参数化协议文件名
-const parameterizedProtocols = {
-  'dj_common_about': { protocolType: 'dj', protocol: 'about' },
-  'dj_common_privacy': { protocolType: 'dj', protocol: 'privacy' },
-  'dj_common_vodAgreement': { protocolType: 'dj', protocol: 'vodAgreement' },
-  'dj_common_usercancel': { protocolType: 'dj', protocol: 'usercancel' },
-  'ys_common_about': { protocolType: 'ys', protocol: 'about' },
-  'ys_common_privacy': { protocolType: 'ys', protocol: 'privacy' },
-  'ys_common_agreement': { protocolType: 'ys', protocol: 'vod' }
-}
+// 获取当前协议配置
+const protocolConfig = computed(() => {
+  return getProtocolConfig(form.value.filename)
+})
 
 // 判断是否是参数化协议
 const isParameterizedProtocol = computed(() => {
-  if (!form.value.filename) return false
-  const baseName = form.value.filename.replace(/\.html?$/i, '')
-  return baseName in parameterizedProtocols
+  return !!protocolConfig.value
 })
 
 // 保存原始 HTML 内容（用于参数替换）
 const originalHTMLContent = ref('')
 
+// 可视化预览内容（内联 utils.js）
+const visualPreviewContent = computed(() => {
+  if (!form.value.content) return ''
+  return inlineUtilsScript(form.value.content)
+})
+
 // 监听文件名变化，初始化预览表单
 watch(() => form.value.filename, (newFilename) => {
-  if (isEdit.value && newFilename) {
-    const baseName = newFilename.replace(/\.html?$/i, '')
-    const protocolInfo = parameterizedProtocols[baseName]
-    if (protocolInfo) {
-      previewForm.value.protocolType = protocolInfo.protocolType
-      previewForm.value.protocol = protocolInfo.protocol
-      // 保存原始内容
-      if (form.value.content) {
-        originalHTMLContent.value = form.value.content
-      }
+  if (newFilename && protocolConfig.value) {
+    // 初始化参数对象
+    const params = {}
+    protocolConfig.value.fields.forEach(field => {
+      setNestedValue(params, field.key, '')
+    })
+    previewForm.value.params = params
+
+    // 保存原始内容
+    if (isEdit.value && form.value.content) {
+      originalHTMLContent.value = form.value.content
     }
   }
 }, { immediate: true })
@@ -375,6 +363,7 @@ const previewUrlKey = ref(0) // 用于强制刷新 iframe
 const previewLoading = ref(false)
 const previewError = ref('')
 let previewUrlTimer = null // 用于防抖
+const isFullscreen = ref(false) // 全屏状态
 
 // 生成预览链接（使用后端接口）
 const generatePreviewUrl = async () => {
@@ -393,13 +382,9 @@ const generatePreviewUrl = async () => {
       previewLoading.value = true
       previewError.value = ''
 
-      // 生成预览HTML内容（注入参数）
+      // 统一使用内联注入方式
       const htmlContent = generatePreviewHtmlContent()
-
-      // 调用后端接口创建预览链接
-      const previewUrlResult = await createPastebinPreview(htmlContent)
-
-      previewUrl.value = previewUrlResult
+      previewUrl.value = await createPastebinPreview(htmlContent)
 
       // 强制刷新 iframe
       nextTick(() => {
@@ -437,105 +422,18 @@ const generatePreviewHtmlContent = () => {
 
   let htmlContent = form.value.content
 
+  // 内联 utils.js（所有协议都需要）
+  htmlContent = inlineUtilsScript(htmlContent)
+
   // 如果是参数化协议，需要在HTML中注入参数
-  if (isParameterizedProtocol.value && previewForm.value.protocol) {
+  if (protocolConfig.value) {
     // 构建参数配置
-    const config = {}
-
-    // 添加通用字段
-    if (previewForm.value.params.name) {
-      config.name = previewForm.value.params.name
-    }
-    if (previewForm.value.params.company) {
-      config.company = previewForm.value.params.company
-    }
-
-    // 添加短剧特有字段
-    if (previewForm.value.protocolType === 'dj') {
-      if (previewForm.value.params.address) {
-        config.address = previewForm.value.params.address
-      }
-      if (previewForm.value.params.postcode) {
-        config.postcode = previewForm.value.params.postcode
-      }
-      // 短剧 privacy 需要 briefCompany
-      if (previewForm.value.protocol === 'privacy' && previewForm.value.params.briefCompany) {
-        config.briefCompany = previewForm.value.params.briefCompany
-      }
-    }
-
-    // 添加影视特有字段
-    if (previewForm.value.protocolType === 'ys') {
-      // 影视 about 和 privacy 需要 briefCompany，但 agreement 不需要
-      if ((previewForm.value.protocol === 'about' || previewForm.value.protocol === 'privacy') && previewForm.value.params.briefCompany) {
-        config.briefCompany = previewForm.value.params.briefCompany
-      }
-    }
-
-    // 添加 historyVersion（vod 协议）
-    if (previewForm.value.protocol === 'vod' || previewForm.value.protocol === 'vodAgreement') {
-      if (previewForm.value.params.historyVersion.href || previewForm.value.params.historyVersion.date) {
-        config.historyVersion = {
-          href: previewForm.value.params.historyVersion.href || '#',
-          date: previewForm.value.params.historyVersion.date || ''
-        }
-      }
-    }
-
-    // 生成要注入的脚本内容
+    const config = buildParamsConfig()
     const configJson = JSON.stringify(config, null, 2)
-    // 使用字符串拼接避免 Vue linter 误报
-    // eslint-disable-next-line no-useless-concat
-    const scriptStart = '<' + 'script>'
-    // eslint-disable-next-line no-useless-concat
-    const scriptEnd = '</' + 'script>'
-    const injectedScript = scriptStart + '\n// 预览模式注入的参数配置\nwindow.__PREVIEW_CONFIG__ = ' + configJson + ';\n' + scriptEnd
+    const injectedScript = createScriptTag('\n// 预览模式注入的参数配置\nwindow.__PREVIEW_CONFIG__ = ' + configJson + ';\n')
 
-    // 在 script src="./utils.js" 之前注入脚本
-    // 匹配 script src="./utils.js" 或 script src='./utils.js'
-    const scriptTag = 'script'
-    const utilsScriptPattern = new RegExp(`<${scriptTag}\\s+src\\s*=\\s*["']\\.\\/utils\\.js["']\\s*>`, 'i')
-    if (utilsScriptPattern.test(htmlContent)) {
-      htmlContent = htmlContent.replace(
-        utilsScriptPattern,
-        injectedScript + '\n$&'
-      )
-    } else {
-      // 如果没有找到 utils.js，尝试在第一个 script 标签之前注入
-      // 或者在没有 script 标签的情况下，在 body 结束之前注入
-      const firstScriptPattern = new RegExp(`<${scriptTag}`, 'i')
-      if (firstScriptPattern.test(htmlContent)) {
-        htmlContent = htmlContent.replace(
-          firstScriptPattern,
-          injectedScript + '\n$&'
-        )
-      } else {
-        // 在 body 结束之前注入
-        // eslint-disable-next-line no-useless-concat
-        const bodyEndTag = '</' + 'body>'
-        const bodyEndPattern = new RegExp(bodyEndTag, 'i')
-        if (bodyEndPattern.test(htmlContent)) {
-          htmlContent = htmlContent.replace(
-            bodyEndPattern,
-            injectedScript + '\n$&'
-          )
-        } else {
-          // 在 html 结束之前注入
-          // eslint-disable-next-line no-useless-concat
-          const htmlEndTag = '</' + 'html>'
-          const htmlEndPattern = new RegExp(htmlEndTag, 'i')
-          if (htmlEndPattern.test(htmlContent)) {
-            htmlContent = htmlContent.replace(
-              htmlEndPattern,
-              injectedScript + '\n$&'
-            )
-          } else {
-            // 如果都没有，直接追加到末尾
-            htmlContent = htmlContent + '\n' + injectedScript
-          }
-        }
-      }
-    }
+    // 在 utils.js 之前注入脚本
+    htmlContent = injectScript(htmlContent, injectedScript, true)
 
     // 修改HTML中的参数读取逻辑，优先使用 window.__PREVIEW_CONFIG__
     // 匹配使用 paramConfig 的代码
@@ -547,14 +445,16 @@ const generatePreviewHtmlContent = () => {
       )
     }
 
-    // 处理 name 参数的读取（about、privacy、usercancel 协议都有这个逻辑）
-    // 匹配类似：const encode_name = getParamsFromUrl(url).name
-    const nameReadPattern = /const\s+encode_name\s*=\s*getParamsFromUrl\(url\)\.name/
-    if (nameReadPattern.test(htmlContent)) {
-      htmlContent = htmlContent.replace(
-        nameReadPattern,
-        `const encode_name = window.__PREVIEW_CONFIG__?.name ? encodeURIComponent(window.__PREVIEW_CONFIG__.name) : getParamsFromUrl(url).name`
-      )
+    // 处理独立参数读取（useQueryParams 协议）
+    // 匹配类似：const name = getParamsFromUrl(url).name
+    if (protocolConfig.value.useQueryParams) {
+      protocolConfig.value.fields.forEach(field => {
+        const key = field.key.split('.').pop() // 获取最后一级的key
+        const pattern = new RegExp(`const\\s+(\\w+)\\s*=\\s*getParamsFromUrl\\(url\\)\\.${key}`, 'g')
+        htmlContent = htmlContent.replace(pattern, (match, varName) => {
+          return `const ${varName} = window.__PREVIEW_CONFIG__?.${field.key} || getParamsFromUrl(url).${key}`
+        })
+      })
     }
   }
 
@@ -593,15 +493,15 @@ const saveToHistoryDebounced = () => {
 const saveToHistory = () => {
   if (!richEditorRef.value) return
   const content = richEditorRef.value.innerHTML
-  
+
   // 如果内容与当前历史相同，不保存
   if (historyStack.value[historyIndex.value] === content) return
-  
+
   // 移除当前索引之后的历史
   historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
   historyStack.value.push(content)
   historyIndex.value++
-  
+
   // 限制最多30条
   if (historyStack.value.length > 30) {
     historyStack.value.shift()
@@ -756,7 +656,7 @@ const handleWordFile = (file) => {
           }
 
           // 清理和优化 HTML
-          const cleanedHTML = cleanWordHTML(html)
+          const cleanedHTML = optimizeHTMLStyles(html)
           // 将转换后的 HTML 包装成完整的 HTML 文档
           const fullHTML = wrapWordHTML(cleanedHTML)
           form.value.content = fullHTML
@@ -787,107 +687,7 @@ const handleWordFile = (file) => {
   })
 }
 
-// 清理富文本编辑器生成的无用类名和样式
-const cleanRichTextHTML = (html) => {
-  try {
-    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
 
-    // 判断无用类名的规则：
-    // 1. auto- 开头：auto-hide-last-sibling-br 等浏览器自动生成的类名
-    // 2. br- 开头：br-paragraph-space 等浏览器自动生成的类名
-    // 3. mce- 开头：TinyMCE 编辑器生成的类名
-    // 4. cke_ 开头：CKEditor 编辑器生成的类名
-    // 5. [a-z]+-[A-Z0-9]{5,}：随机生成的类名，如 header-vfC6AV、paragraph-JOTKXA
-    // 6. paragraph-[A-Z0-9]+：paragraph- 后跟随机字符，如 paragraph-JOTKXA
-    // 7. header-[A-Z0-9]+：header- 后跟随机字符，如 header-vfC6AV
-    // 8. paragraph-element：固定的无用类名
-    const isUselessClass = (className) => {
-      return /^auto-/.test(className) || // auto- 开头
-             /^br-/.test(className) || // br- 开头
-             /^mce-/.test(className) || // mce- 开头
-             /^cke_/.test(className) || // cke_ 开头
-             /^[a-z]+-[A-Z0-9]{5,}$/i.test(className) || // 随机生成的类名
-             /^paragraph-[A-Z0-9]+$/i.test(className) || // paragraph-xxx
-             /^header-[A-Z0-9]+$/i.test(className) || // header-xxx
-             className === 'paragraph-element' // paragraph-element
-    }
-    const uselessStyles = ['-webkit-font-smoothing', '-webkit-tap-highlight-color', 'outline', 'overflow-anchor']
-
-    doc.querySelectorAll('*').forEach(el => {
-      // 清理无用类名
-      if (el.className) {
-        const validClasses = el.className.split(/\s+/).filter(c => {
-          if (!c) return false
-          // 如果类名匹配无用类名模式，则过滤掉
-          return !isUselessClass(c)
-        })
-        if (validClasses.length) {
-          el.className = validClasses.join(' ')
-        } else {
-          el.removeAttribute('class')
-        }
-      }
-
-      // 清理无用样式
-      if (el.hasAttribute('style')) {
-        uselessStyles.forEach(prop => el.style.removeProperty(prop))
-        if (el.style.getPropertyValue('border') === '0px solid') {
-          el.style.removeProperty('border')
-        }
-        if (!el.style.cssText.trim()) {
-          el.removeAttribute('style')
-        }
-      }
-    })
-
-    return doc.body.innerHTML
-  } catch {
-    return html
-  }
-}
-
-// 清理 Word 生成的 HTML
-const cleanWordHTML = (html) => {
-  // 移除空段落
-  html = html.replace(/<p>\s*<\/p>/g, '')
-  // 移除多余的空白字符
-  html = html.replace(/\s+/g, ' ')
-  // 优化段落间距（添加基本样式）
-  html = html.replace(/<p>/g, '<p style="margin: 8px 0;">')
-  // 优化标题样式
-  html = html.replace(/<h1>/g, '<h1 style="margin: 16px 0; font-size: 24px; font-weight: bold;">')
-  html = html.replace(/<h2>/g, '<h2 style="margin: 14px 0; font-size: 20px; font-weight: bold;">')
-  html = html.replace(/<h3>/g, '<h3 style="margin: 12px 0; font-size: 18px; font-weight: bold;">')
-  return html
-}
-
-// 将 Word 转换的 HTML 包装成完整的 HTML 文档
-const wrapWordHTML = (html) => {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>协议文档</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-      line-height: 1.6;
-      padding: 20px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    p { margin: 8px 0; }
-    h1, h2, h3 { margin-top: 16px; margin-bottom: 8px; }
-    ul, ol { margin: 8px 0; padding-left: 24px; }
-    li { margin: 4px 0; }
-  </style>
-</head>
-<body>
-${html}
-</body>
-</html>`
-}
 
 // 更新行号
 const updateLineNumbers = () => {
@@ -926,17 +726,17 @@ const restoreSelection = () => {
 // 应用样式到选中文本
 const applyStyle = (styleName, styleValue) => {
   isExecutingCommand.value = true
-  
+
   // 恢复之前保存的选区
   restoreSelection()
-  
+
   const selection = window.getSelection()
   if (!selection.rangeCount) return
-  
+
   const range = selection.getRangeAt(0)
   const span = document.createElement('span')
   span.style[styleName] = styleValue
-  
+
   try {
     range.surroundContents(span)
   } catch {
@@ -944,7 +744,7 @@ const applyStyle = (styleName, styleValue) => {
     span.appendChild(fragment)
     range.insertNode(span)
   }
-  
+
   setTimeout(() => {
     isExecutingCommand.value = false
     syncRichEditorContent()
@@ -977,163 +777,6 @@ const execForeColor = (e) => {
   }
 }
 
-// 检查是否是完整的 HTML 文档（包含 html 和 body 标签）
-const isFullHTMLDocument = (html) => {
-  return /<!DOCTYPE\s+html/i.test(html) || /<html/i.test(html)
-}
-
-// 从完整 HTML 文档中提取 body 内容
-const extractBodyContent = (html) => {
-  if (!isFullHTMLDocument(html)) {
-    return html
-  }
-
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-  return doc.body.innerHTML
-}
-
-// 格式化 HTML（美化代码）
-const formatHTML = (html) => {
-  if (!html) return html
-
-  // 使用 DOMParser 解析 HTML
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-
-  // 格式化函数
-  const formatNode = (node, indent = 0) => {
-    const indentStr = '  '.repeat(indent)
-    const nextIndent = indent + 1
-
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.trim()
-      return text ? `${indentStr}${text}\n` : ''
-    }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const tagName = node.tagName.toLowerCase()
-      const attrs = []
-
-      // 收集属性
-      for (let i = 0; i < node.attributes.length; i++) {
-        const attr = node.attributes[i]
-        const value = attr.value.includes('"') ? `'${attr.value}'` : `"${attr.value}"`
-        attrs.push(`${attr.name}=${value}`)
-      }
-
-      const attrStr = attrs.length > 0 ? ' ' + attrs.join(' ') : ''
-      const children = Array.from(node.childNodes)
-      const hasTextChildren = children.some(child =>
-        child.nodeType === Node.TEXT_NODE && child.textContent.trim()
-      )
-
-      // 如果是自闭合标签或空标签
-      const voidTags = ['br', 'hr', 'img', 'input', 'meta', 'link']
-      if (voidTags.includes(tagName) && !node.textContent.trim() && children.length === 0) {
-        return `${indentStr}<${tagName}${attrStr}>\n`
-      }
-
-      // 处理有内容的标签
-      let content = ''
-      if (children.length > 0) {
-        if (hasTextChildren || children.length > 1) {
-          // 有子节点，需要换行
-          content = '\n'
-          children.forEach(child => {
-            const childContent = formatNode(child, nextIndent)
-            if (childContent) {
-              content += childContent
-            }
-          })
-          content += indentStr
-        } else {
-          // 只有一个子节点且是文本，不换行
-          content = children[0].textContent.trim()
-        }
-      }
-
-      return `${indentStr}<${tagName}${attrStr}>${content}</${tagName}>\n`
-    }
-
-    return ''
-  }
-
-  // 格式化整个文档
-  let formatted = ''
-
-  // 处理 DOCTYPE
-  if (html.trim().startsWith('<!DOCTYPE')) {
-    const doctypeMatch = html.match(/<!DOCTYPE[^>]*>/i)
-    if (doctypeMatch) {
-      formatted += doctypeMatch[0] + '\n'
-    }
-  }
-
-  // 格式化 html 标签及其内容
-  if (doc.documentElement) {
-    formatted += formatNode(doc.documentElement, 0)
-  } else if (doc.body) {
-    // 如果没有 html 标签，只格式化 body
-    formatted += formatNode(doc.body, 0)
-  }
-
-  return formatted.trim()
-}
-
-// 将 body 内容包装回完整的 HTML 文档结构
-const wrapToFullHTML = (bodyContent, originalHTML) => {
-  if (!isFullHTMLDocument(originalHTML)) {
-    return bodyContent
-  }
-
-  // 提取原始 HTML 的 head 部分和其他元信息
-  const parser = new DOMParser()
-  const originalDoc = parser.parseFromString(originalHTML, 'text/html')
-
-  // 构建新的 HTML 文档
-  let newHTML = ''
-
-  // 检查是否有 DOCTYPE
-  if (/<!DOCTYPE/i.test(originalHTML)) {
-    const doctypeMatch = originalHTML.match(/<!DOCTYPE[^>]*>/i)
-    if (doctypeMatch) {
-      newHTML += doctypeMatch[0] + '\n'
-    }
-  }
-
-  // 检查是否有 html 标签的属性（如 lang）
-  const htmlMatch = originalHTML.match(/<html[^>]*>/i)
-  if (htmlMatch) {
-    newHTML += htmlMatch[0] + '\n'
-  } else {
-    newHTML += '<html>\n'
-  }
-
-  // 添加 head（如果有）
-  if (originalDoc.head && originalDoc.head.innerHTML) {
-    // 提取原始 head 标签及其所有属性
-    const headMatch = originalHTML.match(/<head[^>]*>/i)
-    let headTag = '<head>'
-    if (headMatch) {
-      headTag = headMatch[0]
-    }
-    newHTML += headTag + '\n' + originalDoc.head.innerHTML + '\n</head>\n'
-  }
-
-  // 提取原始 body 标签及其所有属性
-  const bodyMatch = originalHTML.match(/<body[^>]*>/i)
-  let bodyTag = '<body>'
-  if (bodyMatch) {
-    bodyTag = bodyMatch[0]
-  }
-
-  // 添加 body 内容（保留原始 body 标签属性）
-  newHTML += bodyTag + '\n' + bodyContent + '\n</body>\n</html>'
-
-  return newHTML
-}
-
 
 const fetchProtocol = async () => {
   const filename = route.params.filename
@@ -1144,7 +787,10 @@ const fetchProtocol = async () => {
     const res = await getProtocol(filename)
     form.value = {
       filename: res.data.filename || filename,
-      content: res.data.content || ''
+      content: res.data.content || '',
+      app_name: res.data.app_name || '',
+      app_type: res.data.app_type || '',
+      description: res.data.description || ''
     }
     // 保存原始内容（用于格式保持）
     originalContent.value = res.data.content || ''
@@ -1286,7 +932,7 @@ const handleSave = async () => {
 }
 
 const handleCancel = () => {
-  router.push('/protocols')
+  router.back()
 }
 
 // 获取协议列表用于文件名重复检查
@@ -1299,52 +945,20 @@ const fetchProtocolList = async () => {
   }
 }
 
-// 预览功能：根据协议类型显示不同的字段
-const showPreviewField = (fieldName) => {
-  const protocol = previewForm.value.protocol
-  const protocolType = previewForm.value.protocolType
-
-  if (protocol === 'usercancel') {
-    return fieldName === 'name'
-  }
-
-  if (protocol === 'about') {
-    if (protocolType === 'dj') {
-      return ['name', 'company', 'address', 'postcode'].includes(fieldName)
-    } else {
-      return ['name', 'company', 'briefCompany'].includes(fieldName)
-    }
-  }
-
-  if (protocol === 'privacy') {
-    if (protocolType === 'dj') {
-      return ['name', 'company', 'briefCompany'].includes(fieldName)
-    } else {
-      return ['name', 'company', 'briefCompany'].includes(fieldName)
-    }
-  }
-
-  if (protocol === 'vodAgreement' || protocol === 'vod') {
-    return ['name', 'company'].includes(fieldName)
-  }
-
-  return false
-}
-
 // 重置预览表单
 const resetPreviewForm = () => {
-  previewForm.value.params = {
-    name: '',
-    company: '',
-    address: '',
-    postcode: '',
-    briefCompany: '',
-    historyVersion: {
-      href: '',
-      date: ''
-    }
+  if (protocolConfig.value) {
+    const params = {}
+    protocolConfig.value.fields.forEach(field => {
+      setNestedValue(params, field.key, '')
+    })
+    previewForm.value.params = params
   }
-  // 预览内容会自动更新（通过计算属性）
+}
+
+// 切换全屏
+const toggleFullscreen = () => {
+  isFullscreen.value = !isFullscreen.value
 }
 
 onMounted(async () => {
@@ -1679,6 +1293,47 @@ onMounted(async () => {
   font-weight: 600;
   color: #606266;
   border-bottom: 1px solid #dcdfe6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-header-bar {
+  background-color: #f5f7fa;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  border-bottom: 1px solid #dcdfe6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fullscreen-btn {
+  padding: 4px 8px;
+  font-size: 16px;
+}
+
+.fullscreen-btn-toolbar {
+  padding: 6px 10px;
+  border: 1px solid #dcdfe6;
+  background-color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.fullscreen-btn-toolbar:hover {
+  background-color: #ecf5ff;
+  border-color: #409eff;
+  color: #409eff;
 }
 
 .visual-code .code-editor-wrapper {
@@ -1694,6 +1349,49 @@ onMounted(async () => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-wrapper.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background: white;
+  border-radius: 0;
+}
+
+.visual-editor-wrapper.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background: white;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.rich-editor-wrapper.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  background: white;
+  border-radius: 0;
 }
 
 .preview-iframe {
@@ -1702,6 +1400,34 @@ onMounted(async () => {
   max-height: 800px;
   border: none;
   border-radius: 4px;
+  flex: 1;
+}
+
+.preview-wrapper.fullscreen .preview-iframe {
+  min-height: 100%;
+  max-height: 100%;
+  height: 100%;
+}
+
+.mode-tips {
+  margin-top: 8px;
+}
+
+.tip-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0px 12px;
+  background-color: #f0f9ff;
+  border-radius: 4px;
+  color: #606266;
+  font-size: 13px;
+  border-left: 3px solid #409eff;
+}
+
+.tip-text .el-icon {
+  color: #409eff;
+  font-size: 14px;
 }
 
 </style>

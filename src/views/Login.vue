@@ -41,6 +41,17 @@
 
       <!-- 注册表单 -->
       <el-form v-else :model="registerForm" :rules="registerRules" ref="registerFormRef" label-width="0px">
+        <el-alert
+          title="注册提示"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 20px;"
+        >
+          <div style="font-size: 13px; line-height: 1.6;">
+            <div style="margin-bottom: 6px;">• 必须使用<strong>@fun.tv</strong>域名账号注册（如：zhangsan@fun.tv）</div>
+            <div>• 密码要求：至少8位，包含大小写字母和数字</div>
+          </div>
+        </el-alert>
         <el-form-item prop="username">
           <el-input
             v-model="registerForm.username"
@@ -122,14 +133,52 @@ const rules = {
   ]
 }
 
+// 密码复杂度验证
+const validatePassword = (rule, value, callback) => {
+  if (!value) {
+    callback(new Error('请输入密码'))
+    return
+  }
+  if (value.length < 8) {
+    callback(new Error('密码长度不能少于8位'))
+    return
+  }
+  // 必须包含大写字母
+  if (!/[A-Z]/.test(value)) {
+    callback(new Error('密码必须包含至少一个大写字母'))
+    return
+  }
+  // 必须包含小写字母
+  if (!/[a-z]/.test(value)) {
+    callback(new Error('密码必须包含至少一个小写字母'))
+    return
+  }
+  // 必须包含数字
+  if (!/[0-9]/.test(value)) {
+    callback(new Error('密码必须包含至少一个数字'))
+    return
+  }
+  callback()
+}
+
 const registerRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在3-20个字符之间', trigger: 'blur' }
+    { min: 3, max: 50, message: '用户名长度在3-50个字符之间', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (!value.endsWith('@fun.tv')) {
+          callback(new Error('用户名必须以@fun.tv结尾'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+    { validator: validatePassword, trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: '请确认密码', trigger: 'blur' },

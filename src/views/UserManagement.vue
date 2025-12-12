@@ -27,6 +27,13 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="is_active" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.is_active ? 'success' : 'info'">
+            {{ row.is_active ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
 <!--      <el-table-column prop="updatedAt" label="更新时间" width="200" />-->
       <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
@@ -58,14 +65,14 @@
               <el-option label="查看者" value="viewer" />
             </el-select>
             <el-button
-              type="danger"
+              :type="row.is_active ? 'warning' : 'success'"
               size="small"
-              @click="handleDeleteUser(row.id)"
+              @click="handleToggleUserStatus(row)"
               :disabled="row.id === userStore.currentUser?.id"
-              :icon="Delete"
-              class="delete-btn"
+              :icon="row.is_active ? CircleClose : CircleCheck"
+              class="toggle-btn"
             >
-              删除
+              {{ row.is_active ? '禁用' : '启用' }}
             </el-button>
           </div>
         </template>
@@ -89,8 +96,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete } from '@element-plus/icons-vue'
-import { getUserList, updateUserRole, deleteUser } from '../api/user'
+import { CircleClose, CircleCheck } from '@element-plus/icons-vue'
+import { getUserList, updateUserRole, toggleUserStatus } from '../api/user'
 import { useUserStore } from '../stores/user'
 
 const userList = ref([])
@@ -136,10 +143,11 @@ const handleRoleChange = async (userId, newRole) => {
   }
 }
 
-const handleDeleteUser = async (userId) => {
+const handleToggleUserStatus = async (user) => {
+  const action = user.is_active ? '禁用' : '启用'
   try {
     await ElMessageBox.confirm(
-      '确定要删除该用户吗？此操作不可恢复！',
+      `确定要${action}该用户吗？`,
       '提示',
       {
         confirmButtonText: '确定',
@@ -148,14 +156,14 @@ const handleDeleteUser = async (userId) => {
       }
     )
 
-    await deleteUser(userId)
-    ElMessage.success('用户删除成功')
+    await toggleUserStatus(user.id)
+    ElMessage.success(`用户${action}成功`)
 
     // 重新加载用户列表
     fetchUserList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除用户失败')
+      ElMessage.error(`${action}用户失败`)
     }
   }
 }
@@ -219,7 +227,7 @@ onMounted(() => {
  color: #999;
 }
 
-.delete-btn {
+.toggle-btn {
   margin-left: 0 !important;
 }
 

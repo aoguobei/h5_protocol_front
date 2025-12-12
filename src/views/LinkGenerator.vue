@@ -14,4 +14,3 @@ import ProtocolLinkGenerator from '../components/ProtocolLinkGenerator.vue'
   min-height: 100vh;
 }
 </style>
-

@@ -1,9 +1,15 @@
 <template>
   <div class="protocol-list">
+    <!-- 顶部提示 -->
+    <div class="top-tips">
+      <div class="tips-text">⚠️ 编辑提示：修改协议内容前，请确认所有引用该协议的应用都需要同步更新，特别是<span style="color: #409eff; font-weight: 600;">通用</span>协议会影响多个应用</div>
+      <div class="tips-text" style="margin-top: 4px;">✨ 新建提示：若现有通用协议内容适用，建议直接使用通用协议生成链接，无需重复创建</div>
+    </div>
+
     <div class="header-actions">
       <el-input
         v-model="searchKeyword"
-        placeholder="搜索文件名或协议标题"
+        placeholder="搜索文件名、应用类型或应用名称"
         clearable
         style="width: 300px; margin-right: 12px;"
         @input="handleSearch"
@@ -12,6 +18,39 @@
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
+      <el-select
+        v-model="selectedAppTypes"
+        placeholder="筛选应用类型"
+        clearable
+        multiple
+        collapse-tags
+        style="width: 200px; margin-right: 12px;"
+        @change="handleSearch"
+      >
+        <el-option
+          v-for="item in appTypeOptions"
+          :key="item.value"
+          :label="item.text"
+          :value="item.value"
+        />
+      </el-select>
+      <el-select
+        v-model="selectedAppNames"
+        placeholder="筛选应用名称"
+        clearable
+        multiple
+        collapse-tags
+        style="width: 200px; margin-right: 12px;"
+        @change="handleSearch"
+      >
+        <el-option
+          v-for="item in appNameOptions"
+          :key="item.value"
+          :label="item.text"
+          :value="item.value"
+        />
+      </el-select>
+      <div style="flex: 1;"></div>
       <el-button v-if="hasEditPermission" type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         新建协议
@@ -27,20 +66,44 @@
       @sort-change="handleSortChange"
       empty-text="暂无数据"
     >
-      <el-table-column prop="filename" label="文件名" min-width="200" sortable />
-      <el-table-column prop="title" label="协议标题" min-width="200">
+      <el-table-column prop="filename" label="文件名" min-width="160" sortable show-overflow-tooltip />
+      <!-- <el-table-column prop="title" label="协议标题" min-width="150">
         <template #default="{ row }">
           <span :title="row.title || '无标题'">{{ row.title || '-' }}</span>
         </template>
+      </el-table-column> -->
+      <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.description || '-' }}
+        </template>
       </el-table-column>
-      <el-table-column prop="size" label="文件大小" width="120">
+      <el-table-column prop="app_type" label="应用类型" width="120" sortable show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.app_type || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="app_name" label="应用名称" width="140" sortable show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="row.app_name === '通用'" style="color: #409eff;">通用</span>
+          <span v-else>{{ row.app_name || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="size" label="文件大小" width="100">
         <template #default="{ row }">
           {{ formatFileSize(row.size) }}
         </template>
       </el-table-column>
-      <el-table-column prop="updateTime" label="更新时间" width="180" sortable />
+      <el-table-column prop="updateTime" label="更新时间" width="160" sortable show-overflow-tooltip />
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
+          <el-button 
+            type="success"
+            size="small" 
+            @click="handleCopyLink(row.filename)"
+            :disabled="row.app_name === '通用'"
+          >
+            复制
+          </el-button>
           <el-button type="primary" size="small" @click="handleEdit(row.filename)">
             编辑
           </el-button>
@@ -84,23 +147,47 @@ const sortConfig = ref({ prop: 'updateTime', order: 'descending' })
 const searchKeyword = ref('')
 const userStore = useUserStore()
 
+// 筛选选项
+const appTypeOptions = ref([])
+const appNameOptions = ref([])
+const selectedAppTypes = ref([]) // 已选择的应用类型
+const selectedAppNames = ref([]) // 已选择的应用名称
+
 // 检查用户是否有编辑权限
 const hasEditPermission = computed(() => {
   return userStore.role === 'admin' || userStore.role === 'editor'
 })
 
 // 搜索过滤列表
-const filterList = (list, keyword) => {
-  if (!keyword || !keyword.trim()) {
-    return list
+const filterList = (list, keyword, appTypes, appNames) => {
+  let result = list
+  
+  // 应用关键词搜索
+  if (keyword && keyword.trim()) {
+    const lowerKeyword = keyword.toLowerCase().trim()
+    result = result.filter(item => {
+      const filename = (item.filename || '').toLowerCase()
+      const description = (item.description || '').toLowerCase()
+      const appType = (item.app_type || '').toLowerCase()
+      const appName = (item.app_name || '').toLowerCase()
+      return filename.includes(lowerKeyword) || 
+             description.includes(lowerKeyword) ||
+             appType.includes(lowerKeyword) ||
+             appName.includes(lowerKeyword)
+    })
   }
-
-  const lowerKeyword = keyword.toLowerCase().trim()
- return list.filter(item => {
-    const filename = (item.filename || '').toLowerCase()
-    const title = (item.title || '').toLowerCase()
-    return filename.includes(lowerKeyword) || title.includes(lowerKeyword)
-  })
+  
+  // 应用类型筛选
+  if (appTypes && appTypes.length > 0) {
+    result = result.filter(item => appTypes.includes(item.app_type))
+  }
+  
+  // 应用名称筛选
+  if (appNames && appNames.length > 0) {
+    result = result.filter(item => appNames.includes(item.app_name))
+  }
+  
+  return result
 }
 
 // 对列表进行排序
@@ -153,6 +240,10 @@ const fetchList = async () => {
     const res = await getProtocolList()
     // 确保返回的数据是数组，如果不是则使用空数组
     protocolList.value = Array.isArray(res.data) ? res.data : []
+    
+    // 生成筛选选项
+    generateFilterOptions()
+    
     // 应用搜索过滤
     applyFiltersAndSort()
   } catch (error) {
@@ -165,10 +256,36 @@ const fetchList = async () => {
  }
 }
 
+// 生成筛选选项
+const generateFilterOptions = () => {
+  const appTypes = new Set()
+  const appNames = new Set()
+  
+  protocolList.value.forEach(item => {
+    if (item.app_type) appTypes.add(item.app_type)
+    if (item.app_name) appNames.add(item.app_name)
+  })
+  
+  appTypeOptions.value = Array.from(appTypes).map(type => ({
+    text: type,
+    value: type
+  }))
+  
+  appNameOptions.value = Array.from(appNames).map(name => ({
+    text: name,
+    value: name
+  }))
+}
+
 // 应用搜索过滤和排序
 const applyFiltersAndSort = () => {
-  // 先应用搜索过滤
-  filteredProtocolList.value = filterList(protocolList.value, searchKeyword.value)
+  // 先应用搜索和筛选
+  filteredProtocolList.value = filterList(
+    protocolList.value, 
+    searchKeyword.value,
+    selectedAppTypes.value,
+    selectedAppNames.value
+  )
   // 再应用排序
   sortedProtocolList.value = sortList(
     filteredProtocolList.value,
@@ -206,6 +323,51 @@ const handleSortChange = ({ prop, order }) => {
 
 const handleCreate = () => {
   router.push('/edit')
+}
+
+const handleCopyLink = async (filename) => {
+  let domain
+  try {
+    await ElMessageBox.confirm(
+      '请选择域名',
+      '复制链接',
+      {
+        confirmButtonText: 'mp.fun.tv（默认）',
+        cancelButtonText: 'mp.xyhvip.cn（享悦荟）',
+        distinguishCancelAndClose: true,
+        type: 'info',
+        confirmButtonClass: 'el-button--default'
+      }
+    )
+    domain = 'mp.fun.tv'
+  } catch (action) {
+    if (action === 'cancel') {
+      domain = 'mp.xyhvip.cn'
+    } else {
+      return
+    }
+  }
+
+  const link = `https://${domain}/static/notice/${filename}`
+  
+  try {
+    await navigator.clipboard.writeText(link)
+    ElMessage.success('链接已复制到剪贴板')
+  } catch (error) {
+    const textarea = document.createElement('textarea')
+    textarea.value = link
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    try {
+      document.execCommand('copy')
+      ElMessage.success('链接已复制到剪贴板')
+    } catch (err) {
+      ElMessage.error('复制失败，请手动复制')
+    }
+    document.body.removeChild(textarea)
+  }
 }
 
 const handleEdit = (filename) => {
@@ -280,8 +442,23 @@ onMounted(async () => {
   min-height: 100vh;
 }
 
+.top-tips {
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  background-color: #fef0f0;
+  border-radius: 4px;
+  border-left: 3px solid #f56c6c;
+}
+
+.tips-text {
+  color: #606266;
+  font-size: 13px;
+}
+
 .header-actions {
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .pagination-wrapper {

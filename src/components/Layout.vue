@@ -12,7 +12,7 @@
       >
         <el-menu-item index="/link-generator">
           <el-icon><Link /></el-icon>
-          <span>生成协议链接</span>
+          <span>快速生成协议</span>
         </el-menu-item>
         <el-menu-item index="/protocols">
           <el-icon><Document /></el-icon>

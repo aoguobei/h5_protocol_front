@@ -175,7 +175,7 @@
                 <div class="process-content">
                   <el-steps direction="vertical" class="compact-steps">
                     <el-step title="代码准备" description="确保代码已提交并推送到远程仓库" status="wait" />
-                    <el-step title="联系运维" description="发送邮件给运维人员，说明发布需求" status="finish" />
+                    <el-step title="联系运维" description="联系运维人员，说明发布需求" status="finish" />
                     <el-step title="运维操作" description="运维人员执行生产环境部署" status="wait" />
                     <el-step title="验证上线" description="确认生产环境功能正常" status="wait" />
                   </el-steps>

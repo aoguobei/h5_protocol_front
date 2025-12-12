@@ -32,7 +32,7 @@
             <el-option label="Git部署" value="git_deploy" />
             <el-option label="Git拉取" value="git_pull" />
             <el-option label="更新用户角色" value="update_user_role" />
-            <el-option label="删除用户" value="delete_user" />
+            <el-option label="禁用/启用用户" value="toggle_user_status" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -143,7 +143,7 @@ const getActionLabel = (action) => {
     case 'git_deploy': return 'Git部署'
     case 'git_pull': return 'Git拉取'
     case 'update_user_role': return '更新用户角色'
-    case 'delete_user': return '删除用户'
+    case 'toggle_user_status': return '禁用/启用用户'
     default: return action
  }
 }
